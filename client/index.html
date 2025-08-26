@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kamisado – Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 2rem;
+    }
+    h1 { margin-bottom: 1rem; }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #444;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Kamisado</h1>
+  <div class="options">
+    <h2>Play Mode</h2>
+    <button onclick="location.href='game.html?mode=single&size=8&human=white'">Singleplayer – 8×8 (Human White)</button>
+    <button onclick="location.href='game.html?mode=single&size=8&human=black'">Singleplayer – 8×8 (Human Black)</button>
+    <button onclick="location.href='game.html?mode=multi&size=8'">Multiplayer (local) – 8×8</button>
+    <button onclick="location.href='game.html?mode=single&size=10&human=white'">Singleplayer – 10×10 (Human White)</button>
+    <button onclick="location.href='game.html?mode=single&size=10&human=black'">Singleplayer – 10×10 (Human Black)</button>
+    <button onclick="location.href='game.html?mode=multi&size=10'">Multiplayer (local) – 10×10</button>
+    <button onclick="location.href='game.html?online=1&size=8'">Online – 8×8</button>
+    <button onclick="location.href='game.html?online=1&size=10'">Online – 10×10</button>
+  </div>
+</body>
+</html>

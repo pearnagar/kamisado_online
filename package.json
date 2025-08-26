@@ -1,0 +1,13 @@
+{
+  "name": "kamisado-online",
+  "private": true,
+  "workspaces": ["client", "server", "shared"],
+  "scripts": {
+    "dev": "concurrently -n CLIENT,SERVER -c cyan,magenta \"pnpm --filter client dev\" \"pnpm --filter server dev\"",
+    "build": "pnpm -r build",
+    "start": "pnpm --filter server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

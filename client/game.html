@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kamisado – Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      height: 100vh;
+      font-family: sans-serif;
+      background: #f0f0f0;
+    }
+    header, footer {
+      padding: 0.5rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    #board {
+      flex: 1;
+      background: white;
+      display: block;
+    }
+    #hud {
+      margin: 0.5rem;
+      text-align: center;
+    }
+    button {
+      padding: 0.4rem 0.8rem;
+      border-radius: 5px;
+      border: 1px solid #333;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="reset-btn">New Game</button>
+    <button id="undo-btn">Undo</button>
+    <button id="redo-btn">Redo</button>
+    <button id="fs-btn">⛶ Full screen</button>
+  </header>
+
+  <div id="hud">
+    <div id="status-label">Turn: White</div>
+    <div id="required-label">Required: —</div>
+  </div>
+
+  <canvas id="board"></canvas>
+
+  <footer>
+    <button onclick="location.href='index.html'">🏠 Home</button>
+  </footer>
+
+  <!-- Your Vite/TS entry -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

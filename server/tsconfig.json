@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],   // requires @types/node in server package
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
