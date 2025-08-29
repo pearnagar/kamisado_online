@@ -4,5 +4,5 @@
     // If you're not using React/JSX, you can remove this line.
     "jsx": "react-jsx"
   },
-  "include": ["src", "index.html", "game.html"]
+  "include": ["src", "index.html", "game.html", "vite-env.d.ts"]
 }
