@@ -2,7 +2,7 @@
 import { state, anim, pieces, SIZE, BOTTOM_OWNER } from './uiState';
 import type { Player } from './types';
 import { tryMoveTo, legalMovesForPiece } from './rules';
-import { colorIdxAt } from '@shared/engine/boards';
+import { colorIdxAt } from "../../shared/engine/boards";
 
 /* ------------------- Helpers ------------------- */
 

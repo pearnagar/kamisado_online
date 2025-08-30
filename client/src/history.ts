@@ -1,7 +1,7 @@
 // client/src/history.ts
 import type { Player } from './types';
 import { state, pieces } from './uiState';
-import { colorIdxAt } from '@shared/engine/boards';
+import { colorIdxAt } from "../../shared/engine/boards";
 
 /* ------------------- Action types ------------------- */
 

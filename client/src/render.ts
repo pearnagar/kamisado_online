@@ -2,7 +2,7 @@
 import { SIZE, state, pieces, anim } from './uiState';
 import type { Piece } from './types';
 import { COLORS, KANJI } from './palette';
-import { colorIdxAt } from '@shared/engine/boards';
+import { colorIdxAt } from "../../shared/engine/boards";
 
 const CANVAS_ID = 'board';
 

@@ -1,7 +1,7 @@
 // client/src/rules.ts
 import { state, pieces, SIZE, anim, BOTTOM_OWNER } from './uiState';
 import type { Player } from './types';
-import { colorIdxAt } from '@shared/engine/boards';
+import { colorIdxAt } from "../../shared/engine/boards";
 import { KANJI } from './palette';
 import { recordMove, pushAction, type PassAction } from './history';
 

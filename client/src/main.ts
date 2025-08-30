@@ -4,45 +4,38 @@ import { bindButtons, bindCanvasClicks } from './input';
 import { registerRenderer, checkForcedPass } from './rules';
 import { botPlayIfNeeded } from './ai';
 import { MODE, BOT, state, anim } from './uiState';
-
-/* -------------------- Setup -------------------- */
+import { initLocalGame } from './setup';
+import { initOnlineGame } from './net/online';   // ← add this
 
 window.addEventListener('load', () => {
   const canvas = document.getElementById('board') as HTMLCanvasElement | null;
   if (!canvas) throw new Error('#board canvas not found');
 
-  // Resize to fit viewport
   resizeBoard();
   window.addEventListener('resize', resizeBoard);
 
-  // Bind UI controls
   bindButtons();
   bindCanvasClicks(canvas);
 
-  // Register render callback with rules.ts
-  registerRenderer(() => {
-    render();
-  });
+  registerRenderer(() => { render(); });
 
-  // Initial draw
+  if (MODE === 'online') {
+    initOnlineGame();        // ← online: wait for server snapshots
+  } else {
+    initLocalGame();         // ← offline: initialize pieces locally
+  }
+
   render();
-
-  // Kick off loop
   requestAnimationFrame(gameLoop);
 });
 
-/* -------------------- Loop -------------------- */
-
 function gameLoop() {
-  // Render continuously if animating
   if (anim.active) render();
 
-  // Bot turn handling (singleplayer only)
-  if (MODE === 'single' && BOT && state.toMove === BOT && !state.winner && !anim.active) {
+  if (MODE !== 'online' && BOT && state.toMove === BOT && !state.winner && !anim.active) {
     botPlayIfNeeded();
   }
 
-  // Check for forced pass (blocked piece) once per turn
   if (!state.winner && !anim.active) {
     checkForcedPass();
   }
