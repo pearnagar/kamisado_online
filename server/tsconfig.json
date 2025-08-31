@@ -1,8 +1,13 @@
 {
-  "extends": "../tsconfig.json",
   "compilerOptions": {
-    "types": ["node"],   // requires @types/node in server package
-    "outDir": "dist"
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"]
   },
   "include": ["src"]
 }

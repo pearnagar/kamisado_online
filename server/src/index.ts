@@ -1,20 +1,29 @@
 // server/src/index.ts
 import express from 'express';
-import { createServer } from 'http';
+import http from 'http';
 import { Server } from 'socket.io';
 
-import { makeGame, applyMoveAndResolve, snapshot } from './engine';
-import type { ServerGame } from './engine';
-import type { ClientToServer, ServerToClient, Side, RoomId } from '@shared/net/protocol';
+// Shared protocol types (client/server agree on message shapes)
+import type { RoomId, Side, ClientToServer } from '../../shared/net/protocol';
 
-/* ---------------------- Server setup ---------------------- */
+// Server game engine helpers (you created these in server/src/engine.ts)
+import {
+  makeGame,
+  snapshot,
+  applyMoveAndResolve,
+  type ServerGame,
+} from './engine';
+
 const app = express();
-const httpServer = createServer(app);
-const io = new Server<ClientToServer, ServerToClient>(httpServer, {
-  cors: { origin: '*' }, // loosen in dev; tighten for prod
-});
+const server = http.createServer(app);
 
-const PORT = process.env.PORT || 8787;
+// Allow the Vite dev host(s) to connect
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    methods: ['GET', 'POST'],
+  },
+});
 
 /* ---------------------- Room state ------------------------ */
 type Room = {
@@ -27,12 +36,12 @@ type Room = {
 
 const rooms = new Map<RoomId, Room>();
 
-function makeRoomId() {
-  return Math.random().toString(36).slice(2, 7); // e.g. "xk39a"
+function makeRoomId(): RoomId {
+  return Math.random().toString(36).slice(2, 7) as RoomId; // e.g. "xk39a"
 }
 
 /* ---------------------- Socket handlers ------------------- */
-io.on('connection', socket => {
+io.on('connection', (socket) => {
   console.log(`socket connected: ${socket.id}`);
 
   socket.on('msg', (msg: ClientToServer) => {
@@ -48,13 +57,21 @@ io.on('connection', socket => {
         };
         rooms.set(id, room);
         socket.join(id);
-        socket.emit('msg', { t: 'room_created', room: id, you: msg.bottomOwner, size: msg.size });
+        socket.emit('msg', {
+          t: 'room_created',
+          room: id,
+          you: msg.bottomOwner,
+          size: msg.size,
+        });
         console.log(`room ${id} created, bottomOwner=${msg.bottomOwner}`);
       }
 
       else if (msg.t === 'join_room') {
         const room = rooms.get(msg.room);
-        if (!room) { socket.emit('msg', { t: 'error', msg: 'Room not found' }); return; }
+        if (!room) {
+          socket.emit('msg', { t: 'error', msg: 'Room not found' });
+          return;
+        }
 
         // Assign opposite side
         const opp: Side = room.bottomOwner === 'White' ? 'Black' : 'White';
@@ -64,17 +81,37 @@ io.on('connection', socket => {
         }
         room.sockets[opp] = socket.id;
         socket.join(room.id);
-        socket.emit('msg', { t: 'room_joined', room: room.id, you: opp, size: room.size, oppJoined: true });
-        io.to(room.id).emit('msg', { t: 'state', room: room.id, state: snapshot(room.game, room.size, room.bottomOwner) });
+
+        socket.emit('msg', {
+          t: 'room_joined',
+          room: room.id,
+          you: opp,
+          size: room.size,
+          oppJoined: true,
+        });
+
+        // Broadcast full snapshot to both
+        io.to(room.id).emit('msg', {
+          t: 'state',
+          room: room.id,
+          state: snapshot(room.game, room.size, room.bottomOwner),
+        });
+
         console.log(`socket ${socket.id} joined room ${room.id} as ${opp}`);
       }
 
       else if (msg.t === 'move') {
         const room = rooms.get(msg.room);
-        if (!room) { socket.emit('msg', { t: 'error', msg: 'Room not found' }); return; }
+        if (!room) {
+          socket.emit('msg', { t: 'error', msg: 'Room not found' });
+          return;
+        }
 
         const ok = applyMoveAndResolve(room.game, msg.from, msg.to);
-        if (!ok) { socket.emit('msg', { t: 'error', msg: 'Illegal move' }); return; }
+        if (!ok) {
+          socket.emit('msg', { t: 'error', msg: 'Illegal move' });
+          return;
+        }
 
         io.to(room.id).emit('msg', {
           t: 'state',
@@ -97,7 +134,7 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     console.log(`socket disconnected: ${socket.id}`);
-    // Optional: clean up room assignments
+    // Optional: clean up room if a player leaves
     for (const [id, room] of rooms) {
       if (room.sockets.White === socket.id || room.sockets.Black === socket.id) {
         io.to(id).emit('msg', { t: 'error', msg: 'Opponent disconnected' });
@@ -108,6 +145,7 @@ io.on('connection', socket => {
 });
 
 /* ---------------------- Start ----------------------------- */
-httpServer.listen(PORT, () => {
-  console.log(`Kamisado server running on http://localhost:${PORT}`);
+const PORT = process.env.PORT ? Number(process.env.PORT) : 8787;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Kamisado server running on http://localhost:${PORT}`);
 });

@@ -1,5 +1,5 @@
 // server/src/room.ts
-import type { Side, RoomId } from '@shared/net/protocol';
+import type { Side, RoomId } from '../../shared/net/protocol';
 import type { ServerGame } from './engine';
 import { makeGame } from './engine';
 
