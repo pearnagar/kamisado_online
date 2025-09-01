@@ -86,10 +86,11 @@ export function initOnlineGame() {
         mySide = m.you;
 
         const u = new URL(location.href);
-        u.searchParams.set('room', roomId);        // roomId is string here
+        u.searchParams.set('room', roomId as string);
         history.replaceState(null, '', u.toString());
 
-        state.message = `Room created: ${roomId}. Share this link to invite.`;
+        // ✅ better message for host while waiting
+        state.message = `Room created: ${roomId}. Waiting for opponent… Share this link to invite.`;
         const roomEl = document.getElementById('room-label');
         if (roomEl) roomEl.textContent = `Room: ${roomId}`;
         render();

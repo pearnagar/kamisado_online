@@ -1,56 +1,98 @@
 // client/src/input.ts
-import { pieces, state, MODE, BOT, BOTTOM_OWNER, SIZE } from './uiState';
+import { pieces, state, MODE, BOT, SIZE } from './uiState';
 import type { Player } from './types';
 import { selectPieceAt, tryMoveTo, legalMovesForPiece } from './rules';
-import { undo, redo } from './history';
+import { undo, redo, past, future } from './history';
 import { initLocalGame } from './setup';
-
-// Online helpers (only used in online mode)
 import { getMySide, sendMove } from './net/online';
 
-/* ----------------------------- Buttons ----------------------------- */
+/* ------------------------------------------------------------------ */
+/* Toolbar binding & state                                             */
+/* ------------------------------------------------------------------ */
 
-export function bindButtons() {
-  const resetBtn = document.getElementById('reset-btn');
-  const undoBtn  = document.getElementById('undo-btn');
-  const redoBtn  = document.getElementById('redo-btn');
-  const fsBtn    = document.getElementById('fs-btn');
+let bound = false;
+let resetBtn: HTMLButtonElement | null = null;
+let undoBtn:  HTMLButtonElement | null = null;
+let redoBtn:  HTMLButtonElement | null = null;
+let fsBtn:    HTMLButtonElement | null = null;
 
-  // Reset / New Game
+/** Enable/disable buttons based on mode & history stacks */
+export function updateToolbar() {
+  if (!bound) return;
+
+  const online = MODE === 'online';
+
+  // Reset allowed only offline (server controls new game in online mode)
   if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
+    resetBtn.disabled = online;
+    resetBtn.title = online ? 'Disabled in online mode' : 'Start a new local game';
+  }
+
+  // Undo / Redo only offline and depend on history stacks
+  if (undoBtn) {
+    undoBtn.disabled = online || past.length === 0;
+    undoBtn.title = online ? 'Disabled in online mode' : 'Undo last move';
+  }
+  if (redoBtn) {
+    redoBtn.disabled = online || future.length === 0;
+    redoBtn.title = online ? 'Disabled in online mode' : 'Redo move';
+  }
+
+  // Fullscreen always enabled
+  if (fsBtn) {
+    fsBtn.disabled = false;
+    fsBtn.title = 'Toggle fullscreen';
+  }
+}
+
+/** Bind toolbar buttons once */
+export function bindButtons() {
+  if (bound) return; // guard against hot-reload double binds
+
+  resetBtn = document.getElementById('reset-btn') as HTMLButtonElement | null;
+  undoBtn  = document.getElementById('undo-btn')  as HTMLButtonElement | null;
+  redoBtn  = document.getElementById('redo-btn')  as HTMLButtonElement | null;
+  fsBtn    = document.getElementById('fs-btn')    as HTMLButtonElement | null;
+
+  // New game (offline only)
+  if (resetBtn) {
+    resetBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       if (MODE === 'online') {
-        // In online mode the server is authoritative; simple UX note:
-        alert('In online mode, new games are created from the home page or by reloading with ?online=1 (server controls state).');
+        alert('New game is controlled by the server in online mode.\nCreate or join from the homepage.');
         return;
       }
       initLocalGame();
+      updateToolbar();
     });
   }
 
-  // Undo / Redo (disabled in online)
+  // Undo / Redo (offline only)
   if (undoBtn) {
-    if (MODE === 'online') {
-      (undoBtn as HTMLButtonElement).disabled = true;
-      undoBtn.title = 'Disabled in online mode';
-    } else {
-      undoBtn.addEventListener('click', () => undo());
-    }
+    undoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (MODE !== 'online') {
+        undo();
+        updateToolbar();
+      }
+    });
   }
   if (redoBtn) {
-    if (MODE === 'online') {
-      (redoBtn as HTMLButtonElement).disabled = true;
-      redoBtn.title = 'Disabled in online mode';
-    } else {
-      redoBtn.addEventListener('click', () => redo());
-    }
+    redoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (MODE !== 'online') {
+        redo();
+        updateToolbar();
+      }
+    });
   }
 
-  // Fullscreen
+  // Fullscreen toggle (works in any mode)
   if (fsBtn) {
-    fsBtn.addEventListener('click', async () => {
+    fsBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       const doc: any = document;
-      const root = document.documentElement as any;
+      const root: any = document.documentElement;
       const isFs = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement);
       try {
         if (!isFs) {
@@ -63,30 +105,32 @@ export function bindButtons() {
           else if (doc.msExitFullscreen) await doc.msExitFullscreen();
         }
       } catch {
-        // no-op; some browsers may block without user gesture
+        /* ignore */
       }
     });
   }
+
+  bound = true;
+  updateToolbar();
 }
 
-/* ----------------------------- Canvas clicks ----------------------------- */
+/* ------------------------------------------------------------------ */
+/* Board click handling                                                */
+/* ------------------------------------------------------------------ */
 
-/**
- * Bind click handling on the board canvas.
- * - Offline: uses rules to move locally.
- * - Online: only sends moves for your side; server applies and broadcasts.
- */
+/** Bind click handling on the game canvas */
 export function bindCanvasClicks(canvas: HTMLCanvasElement) {
-  canvas.addEventListener('click', ev => {
+  canvas.style.pointerEvents = 'auto';
+
+  canvas.addEventListener('click', (ev) => {
     const rect = canvas.getBoundingClientRect();
     const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+    const y = (ev.clientY - rect.top)  * (canvas.height / rect.height);
 
-    const tileW = canvas.width / SIZE;
+    const tileW = canvas.width  / SIZE;
     const tileH = canvas.height / SIZE;
     const c = Math.floor(x / tileW);
     const r = Math.floor(y / tileH);
-
     if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
 
     if (MODE === 'online') {
@@ -97,67 +141,57 @@ export function bindCanvasClicks(canvas: HTMLCanvasElement) {
   });
 }
 
-/* ----------------------------- Offline logic ----------------------------- */
+/* ----------------------------- Offline ------------------------------ */
 
 function handleOfflineClick(r: number, c: number) {
-  // If there’s a selection and the user clicked a legal target → move
-  if (state.selectedIndex !== undefined &&
-      state.legalTargets.some(t => t.r === r && t.c === c)) {
+  // If a legal target is clicked while a piece is selected → move
+  if (
+    state.selectedIndex !== undefined &&
+    state.legalTargets.some((t) => t.r === r && t.c === c)
+  ) {
     tryMoveTo(r, c);
+    updateToolbar(); // history changed
     return;
   }
 
-  // Otherwise, try selecting a piece (but not the bot's pieces in singleplayer)
-  const idx = pieces.findIndex(p => p.pos.r === r && p.pos.c === c);
+  // Otherwise try to select a piece (block selecting bot's pieces)
+  const idx = pieces.findIndex((p) => p.pos.r === r && p.pos.c === c);
   if (idx === -1) return;
 
   const p = pieces[idx];
-
-  // In singleplayer, don't allow clicking bot's pieces
-  if (BOT && p.owner === BOT) return;
-
-  // Must be the side to move
+  if (BOT && p.owner === BOT) return; // can't select bot's piece in singleplayer
   if (p.owner !== state.toMove) return;
-
-  // If a required color is set, enforce it
   if (state.requiredColorIndex !== undefined && p.colorIndex !== state.requiredColorIndex) return;
 
   selectPieceAt(r, c);
 }
 
-/* ----------------------------- Online logic ------------------------------ */
+/* ------------------------------ Online ------------------------------ */
 
 function handleOnlineClick(r: number, c: number) {
-  const me: Player | null = getMySide?.() ?? null;
-  if (!me) return;
+  const me: Player | null = (typeof getMySide === 'function') ? getMySide() : null;
+  if (!me || state.toMove !== me) return;
 
-  // Only allow actions on your turn
-  if (state.toMove !== me) return;
-
-  // If a piece is selected and target is legal → send move
   if (state.selectedIndex !== undefined) {
     const sel = pieces[state.selectedIndex];
     const legal = legalMovesForPiece(state.selectedIndex);
-    if (legal.some(t => t.r === r && t.c === c)) {
+    if (legal.some((t) => t.r === r && t.c === c)) {
+      // Send to server; server will broadcast a fresh snapshot
       sendMove({ r: sel.pos.r, c: sel.pos.c }, { r, c });
-      // Clear local selection; server will broadcast authoritative state
+      // Clear local highlights
       state.selectedIndex = undefined;
       state.legalTargets = [];
       return;
     }
   }
 
-  // Otherwise, try selecting one of *your* pieces
-  const idx = pieces.findIndex(p => p.pos.r === r && p.pos.c === c);
+  const idx = pieces.findIndex((p) => p.pos.r === r && p.pos.c === c);
   if (idx === -1) return;
 
   const p = pieces[idx];
   if (p.owner !== me) return;
-
-  // Respect required color if set
   if (state.requiredColorIndex !== undefined && p.colorIndex !== state.requiredColorIndex) return;
 
-  // Locally compute targets just for user feedback; server remains authoritative
   state.selectedIndex = idx;
   state.legalTargets = legalMovesForPiece(idx);
 }

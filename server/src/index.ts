@@ -20,10 +20,15 @@ const server = http.createServer(app);
 // Allow the Vite dev host(s) to connect
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    // Allow any origin during dev (easiest way to rule out CORS)
+    origin: (_origin, cb) => cb(null, true),
+    credentials: false,
     methods: ['GET', 'POST'],
   },
 });
+
+app.get('/', (_req, res) => res.send('Kamisado Socket.IO server is running.'));
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
 /* ---------------------- Room state ------------------------ */
 type Room = {

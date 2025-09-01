@@ -10,10 +10,13 @@ let _render = () => {};
 export function registerRenderer(fn: () => void) { _render = fn; }
 
 /* ---------------------- Utilities / helpers -------------------- */
+// Helper: is the square inside the board?
+const inBounds = (r: number, c: number) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
 
-const MAX_RAY = (SIZE === 10) ? 7 : Number.POSITIVE_INFINITY;
-
-const onBoard = (r: number, c: number) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+// For Mega (10x10) you may move up to 7 squares; for 8x8 it's “any distance”
+function maxRay(): number {
+  return SIZE === 10 ? 7 : SIZE; // SIZE is safe upper bound for 8x8
+}
 
 export function homeRow(owner: Player) {
   // Bottom owner’s home is last row; the other's is top row.
@@ -44,20 +47,28 @@ export function currentPlayersPieceIndexByColor(ci: number) {
 
 export function legalMovesForPiece(pi: number) {
   const p = pieces[pi];
-  const out: { r: number; c: number }[] = [];
+  const moves: { r: number; c: number }[] = [];
+  const max = maxRay();
 
-  for (const d of dirsFor(p.owner)) {
-    let steps = 0;
-    let r = p.pos.r + d.dr, c = p.pos.c + d.dc;
-    while (onBoard(r, c) && !occupied(r, c) && steps < MAX_RAY) {
-      out.push({ r, c });
-      steps++;
-      const nr = r + d.dr, nc = c + d.dc;
-      if (!onBoard(nr, nc) || occupied(nr, nc) || steps >= MAX_RAY) break;
-      r = nr; c = nc;
+  // forward, fwd-left, fwd-right depending on owner
+  const dr = (p.owner === BOTTOM_OWNER) ? -1 : +1;
+  const dirs = [
+    { dr, dc: 0 },
+    { dr, dc: -1 },
+    { dr, dc: +1 },
+  ];
+
+  for (const { dr, dc } of dirs) {
+    for (let step = 1; step <= max; step++) {
+      const r = p.pos.r + dr * step;
+      const c = p.pos.c + dc * step;
+      if (!inBounds(r, c)) break;
+      if (occupied(r, c)) break;      // blocked -> stop this ray
+      moves.push({ r, c });           // ✅ include 1-step, 2-step, … up to max
     }
   }
-  return out;
+
+  return moves;
 }
 
 /* -------------------------- Selection ------------------------- */
