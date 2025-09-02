@@ -1,14 +1,29 @@
-export const COLORS = [
-  '#FF6B00', // 0 Orange  橙
-  '#0074D9', // 1 Blue    青
-  '#800080', // 2 Purple  紫
-  '#FF1493', // 3 Pink    桃
-  '#FFD300', // 4 Yellow  黄
-  '#C00000', // 5 Red     赤
-  '#228B22', // 6 Green   緑
-  '#5B3A1E', // 7 Brown   茶
-  '#C6862A', // 8 Gold    金
-  '#A8A8A8', // 9 Silver  銀
-] as const;
+// client/src/palette.ts
+// Color palette and Kanji labels for pieces & tiles.
 
-export const KANJI = ['橙','青','紫','桃','黄','赤','緑','茶','金','銀'] as const;
+export const COLORS: string[] = [
+  '#ff8c00', // Orange
+  '#0080ff', // Blue
+  '#ff0080', // Pink
+  '#008000', // Green
+  '#ffff00', // Yellow
+  '#8b00ff', // Purple
+  '#ff0000', // Red
+  '#8b4513', // Brown
+  '#c0c0c0', // Silver (only for 10x10)
+  '#ffd700', // Gold   (only for 10x10)
+];
+
+// Kanji symbols matching COLORS order
+export const KANJI: string[] = [
+  '橙', // Orange
+  '青', // Blue
+  '桃', // Pink
+  '緑', // Green
+  '黄', // Yellow
+  '紫', // Purple
+  '赤', // Red
+  '茶', // Brown
+  '銀', // Silver
+  '金', // Gold
+];

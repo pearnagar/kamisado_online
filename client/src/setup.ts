@@ -1,42 +1,49 @@
 // client/src/setup.ts
-import { pieces, state, SIZE, BOTTOM_OWNER } from './uiState';
-import type { Player } from './types';
+// Local game setup & reset helpers (used by main.ts + toolbar New Game button).
+
+import { state, pieces, setSize } from './uiState';
 import { BOARD8, BOARD10 } from '../../shared/engine/boards';
 
-export function initLocalGame() {
-  // choose correct color-index grid
-  const board = (SIZE === 10) ? BOARD10 : BOARD8;
+/**
+ * Initialize a fresh local game with given board size.
+ * @param size board size (8 or 10). If omitted, reuse current state.size.
+ */
+export function initLocalGame(size?: 8 | 10) {
+  const sz = size ?? (state.size as 8 | 10);
+  setSize(sz);
 
-  // clear any previous state
   pieces.length = 0;
 
-  // owners
-  const bottom: Player = BOTTOM_OWNER;
-  const top: Player = (bottom === 'White') ? 'Black' : 'White';
-
-  // top row (r = 0)
-  for (let c = 0; c < SIZE; c++) {
+  // Add White pieces (bottom)
+  for (let c = 0; c < sz; c++) {
+    const ci = (sz === 8 ? BOARD8[sz - 1][c] : BOARD10[sz - 1][c]);
     pieces.push({
-      owner: top,
-      colorIndex: board[0][c],
+      owner: 'White',
+      colorIndex: ci,
+      pos: { r: sz - 1, c },
+    });
+  }
+
+  // Add Black pieces (top)
+  for (let c = 0; c < sz; c++) {
+    const ci = (sz === 8 ? BOARD8[0][c] : BOARD10[0][c]);
+    pieces.push({
+      owner: 'Black',
+      colorIndex: ci,
       pos: { r: 0, c },
     });
   }
 
-  // bottom row (r = SIZE - 1)
-  for (let c = 0; c < SIZE; c++) {
-    pieces.push({
-      owner: bottom,
-      colorIndex: board[SIZE - 1][c],
-      pos: { r: SIZE - 1, c },
-    });
-  }
-
-  // reset turn/UI state
-  state.toMove = 'White';                  // Kamisado: White always starts
+  // Reset state
+  state.toMove = 'White';
   state.requiredColorIndex = undefined;
-  state.winner = undefined;
-  state.message = '';
   state.selectedIndex = undefined;
   state.legalTargets = [];
+  state.winner = undefined;
+  state.message = 'New game started';
+}
+
+/** Reset the current local game while preserving the board size. */
+export function resetLocalGame() {
+  initLocalGame(state.size as 8 | 10);
 }

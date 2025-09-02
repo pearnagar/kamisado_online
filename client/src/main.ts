@@ -1,111 +1,75 @@
 // client/src/main.ts
-import { render } from './render';
-import { bindButtons, bindCanvasClicks, updateToolbar } from './input';
-import { registerRenderer, checkForcedPass } from './rules';
-import { MODE, state, anim, BOT } from './uiState';
+import { MODE, state } from './uiState';
 import { initLocalGame } from './setup';
+import { initInput, updateToolbar } from './input';
+import { render, registerRenderer } from './render';
 import { initOnlineGame } from './net/online';
-import { botPlayIfNeeded } from './ai';
 
-/* ---------------- Canvas sizing (always fit screen) ---------------- */
+// Attach & size the canvas to the viewport, keeping it square and pixel-aligned.
+function attachCanvas(canvas: HTMLCanvasElement) {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-let canvas: HTMLCanvasElement;
+  const headerH = 48;  // matches game.html header padding/height
+  const footerH = 40;  // matches game.html footer padding/height
+  const usableW = window.innerWidth;
+  const usableH = Math.max(0, window.innerHeight - headerH - footerH);
 
-/** Attach the canvas and set up responsive sizing */
-export function attachCanvas(el: HTMLCanvasElement) {
-  canvas = el;
-  resizeBoard(); // initial size
+  const cssSide = Math.floor(Math.min(usableW, usableH));
+  const pixelSide = Math.max(1, Math.floor(cssSide * dpr));
 
-  // Re-size on viewport & fullscreen changes
-  window.addEventListener('resize', resizeBoard);
-  window.addEventListener('orientationchange', resizeBoard);
-  document.addEventListener('fullscreenchange', resizeBoard);
+  canvas.style.width = `${cssSide}px`;
+  canvas.style.height = `${cssSide}px`;
+  canvas.width = pixelSide;
+  canvas.height = pixelSide;
+
+  // First render immediately after sizing
+  render();
 }
 
-/** Pick the largest square that fits the viewport after UI chrome */
-export function resizeBoard() {
+function onResize() {
+  const canvas = document.getElementById('board') as HTMLCanvasElement | null;
   if (!canvas) return;
-
-  // Cap DPR a bit for perf; remove Math.min(...) for full native DPR
-  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-  const headerH =
-    (document.querySelector('header') as HTMLElement)?.getBoundingClientRect().height || 0;
-  const footerH =
-    (document.querySelector('footer') as HTMLElement)?.getBoundingClientRect().height || 0;
-  const toolbarH =
-    (document.getElementById('toolbar') as HTMLElement)?.getBoundingClientRect().height || 0;
-
-  const PAD = 16; // safe padding around the board
-
-  const availW = window.innerWidth - PAD * 2;
-  const availH = window.innerHeight - headerH - footerH - toolbarH - PAD * 3;
-
-  const side = Math.max(280, Math.floor(Math.min(availW, availH)));
-
-  // CSS layout size (logical pixels)
-  canvas.style.width = `${side}px`;
-  canvas.style.height = `${side}px`;
-
-  // Actual bitmap size (device pixels) for crisp rendering
-  canvas.width = Math.floor(side * dpr);
-  canvas.height = Math.floor(side * dpr);
-
-  render(); // redraw after resize
+  attachCanvas(canvas);
 }
 
-/* -------------------------------- Boot -------------------------------- */
+function loop() {
+  render();
+  requestAnimationFrame(loop);
+}
 
 window.addEventListener('load', () => {
-  const el = document.getElementById('board') as HTMLCanvasElement | null;
-  if (!el) {
+  const canvas = document.getElementById('board') as HTMLCanvasElement | null;
+  if (!canvas) {
     console.error('Canvas #board not found.');
     return;
   }
 
-  // Canvas attach + resize behaviour
-  attachCanvas(el);
-
-  // UI bindings
-  bindButtons();
-  bindCanvasClicks(el);
-
-  // Renderer callback (so rules.ts can re-render without circular deps)
+  // Allow rules.ts to trigger re-render
   registerRenderer(() => {
     render();
     updateToolbar();
   });
 
-  // Start the selected mode
+  // Size canvas and do an initial paint
+  attachCanvas(canvas);
+
+  // Wire inputs (buttons + clicks)
+  initInput(canvas);
+
+  // Always create a visible board immediately
+  initLocalGame(8);
+
+  // If this is the online page, start socket after we have something on screen
   if (MODE === 'online') {
-    initOnlineGame();   // server will push initial snapshot
-  } else {
-    initLocalGame();    // local pieces setup
+    initOnlineGame();
   }
 
-  // First paint + toolbar state
-  render();
+  // First status update
   updateToolbar();
 
-  // Start the loop
+  // Repaint on resize
+  window.addEventListener('resize', onResize);
+
+  // Animation loop (high-frequency re-paint keeps animations smooth)
   requestAnimationFrame(loop);
 });
-
-/* ------------------------------ Game loop ------------------------------ */
-
-function loop() {
-  // If there’s an animation, keep repainting smoothly
-  if (anim.active) render();
-
-  // Offline AI move (online is driven by server snapshots)
-  if (MODE !== 'online' && BOT && state.toMove === BOT && !state.winner && !anim.active) {
-    botPlayIfNeeded();
-  }
-
-  // Forced pass check (handles “blocked piece steps on itself” animation)
-  if (!state.winner && !anim.active) {
-    checkForcedPass();
-  }
-
-  requestAnimationFrame(loop);
-}

@@ -1,115 +1,102 @@
 // client/src/net/online.ts
-import { connect, getSocket } from './socket';
-import { pieces, state, SIZE } from '../uiState';
-import { render } from '../render';
-import type { GameSnapshot, ClientToServer, ServerToClient, Side } from '../../../shared/net/protocol';
+// Online play helpers (wrapping socket.io client). Provides mode checks,
+// mySide, leaveRoom, sendMove, etc.
 
-let mySide: Side | null = null;
+import { io, Socket } from 'socket.io-client';
+import { state, pieces, MODE } from '../uiState';
+import type { Player } from '../types';
+// import type { ClientToServer, ServerToClient } from '@shared/net/protocol';
+import { initLocalGame } from '../setup';
+
+let socket: any = null;
+let mySide: Player | null = null;
 let roomId: string | null = null;
 
-export function getMySide(): Side | null { return mySide; }
+/* -------------------- Mode helpers -------------------- */
 
-export function sendMove(from: { r: number; c: number }, to: { r: number; c: number }) {
-  if (!roomId) return;
-  const msg: ClientToServer = { t: 'move', room: roomId, from, to };
-  getSocket().emit('msg', msg);
+export function isOnline() {
+  return MODE === 'online';
 }
 
-function applySnapshot(s: GameSnapshot) {
-  if (s.size !== SIZE) {
-    console.warn(`Snapshot size (${s.size}) != URL size (${SIZE}). Consider reloading with ?size=${s.size}`);
-  }
-
-  pieces.length = 0;
-  for (const p of s.pieces) {
-    pieces.push({ owner: p.owner, colorIndex: p.colorIndex, pos: { r: p.r, c: p.c } });
-  }
-
-  state.toMove = s.toMove;
-  state.requiredColorIndex = s.requiredColorIndex;
-  state.winner = s.winner;
-  state.message = s.message || '';
-  state.selectedIndex = undefined;
-  state.legalTargets = [];
-
-  const roomEl = document.getElementById('room-label');
-  if (roomEl && roomId) roomEl.textContent = `Room: ${roomId}`;
-
-  render();
+export function getMySide(): Player | null {
+  return mySide;
 }
+
+/* -------------------- Lifecycle -------------------- */
 
 export function initOnlineGame() {
-  const params = new URLSearchParams(location.search);
+  if (MODE !== 'online') return;
 
+  // Access Vite env safely; fall back to localhost
   const url =
-    (import.meta as any)?.env?.VITE_SERVER_URL ||
-    (typeof window !== 'undefined' ? `${location.protocol}//${location.hostname}:8787` : 'http://localhost:8787');
+    ((import.meta as any)?.env?.VITE_SERVER_URL as string) ||
+    (window as any).__SERVER_URL ||
+    'http://localhost:8787';
 
-  const sock = connect(url);
+  socket = io(url);
 
-  sock.on('connect', () => {
-    const roomParam = params.get('room');           // string | null
-    const sizeParam = (params.get('size') === '10' ? 10 : 8) as 8 | 10;
-    const bottomOwner: Side = 'White';
+  socket.on('connect', () => {
+    console.log('connected to server');
+    // For now, auto-create room (you can add UI to join)
+    socket!.emit('msg', { t: 'create_room', size: state.size as 8 | 10, bottomOwner: 'White' });
+  });
 
-    if (roomParam && roomParam.trim().length > 0) {
-      const room: string = roomParam.trim();        // narrow to string
-      const msg: ClientToServer = { t: 'join_room', room };
-      sock.emit('msg', msg);
-    } else {
-      const msg: ClientToServer = { t: 'create_room', size: sizeParam, bottomOwner };
-      sock.emit('msg', msg);
+  socket.on('msg', (msg: any) => {
+    if (!msg || !msg.t) return;
+
+    if (msg.t === 'room_created') {
+      mySide = msg.you as Player;
+      roomId = msg.room as string;
+      console.log(`room created: ${roomId}, you=${mySide}`);
+    } else if (msg.t === 'room_joined') {
+      mySide = msg.you as Player;
+      roomId = msg.room as string;
+      console.log(`joined room: ${roomId}, you=${mySide}`);
+    } else if (msg.t === 'state') {
+      // Apply server snapshot to local state
+      const snap = msg.state || {};
+      state.size = (snap.size as 8 | 10) ?? state.size;
+      state.toMove = (snap.toMove as Player) ?? state.toMove;
+
+      // Some servers might send `required`, others `req`
+      state.requiredColorIndex =
+        (snap.required as number | undefined) ??
+        (snap.req as number | undefined);
+
+      state.winner = snap.winner as Player | undefined;
+
+      pieces.length = 0;
+      const sp = Array.isArray(snap.pieces) ? snap.pieces : [];
+      for (const it of sp) {
+        pieces.push({
+          owner: it.owner as Player,
+          colorIndex: it.colorIndex as number,
+          pos: { r: it.r as number, c: it.c as number },
+        });
+      }
+    } else if (msg.t === 'error') {
+      console.error('server error', msg.msg);
     }
   });
+}
 
-  sock.on('connect_error', (err) => {
-    console.error('Socket connect_error:', err);
-    state.message = 'Online: cannot connect to server';
-    render();
-  });
+/** Leave current room and reset back to local game. */
+export function leaveRoom() {
+  if (socket && roomId) {
+    socket.emit('msg', { t: 'resign', room: roomId });
+    socket.disconnect();
+  }
+  socket = null;
+  roomId = null;
+  mySide = null;
 
-  sock.on('disconnect', () => {
-    state.message = 'Online: disconnected';
-    render();
-  });
+  // Back to local default
+  initLocalGame(8);
+}
 
-  sock.on('msg', (m: ServerToClient) => {
-    switch (m.t) {
-      case 'error': {
-        console.error('Server error:', m.msg);
-        state.message = `Online: ${m.msg}`;
-        render();
-        break;
-      }
-      case 'room_created': {
-        roomId = m.room;
-        mySide = m.you;
+/* -------------------- Moves -------------------- */
 
-        const u = new URL(location.href);
-        u.searchParams.set('room', roomId as string);
-        history.replaceState(null, '', u.toString());
-
-        // ✅ better message for host while waiting
-        state.message = `Room created: ${roomId}. Waiting for opponent… Share this link to invite.`;
-        const roomEl = document.getElementById('room-label');
-        if (roomEl) roomEl.textContent = `Room: ${roomId}`;
-        render();
-        break;
-      }
-      case 'room_joined': {
-        roomId = m.room;
-        mySide = m.you;
-        state.message = `Joined room ${roomId}.`;
-        const roomEl = document.getElementById('room-label');
-        if (roomEl) roomEl.textContent = `Room: ${roomId}`;
-        render();
-        break;
-      }
-      case 'state': {
-        roomId = m.room;
-        applySnapshot(m.state);
-        break;
-      }
-    }
-  });
+export function sendMove(from: { r: number; c: number }, to: { r: number; c: number }) {
+  if (!socket || !roomId) return;
+  socket.emit('msg', { t: 'move', room: roomId, from, to });
 }

@@ -1,195 +1,126 @@
 // client/src/render.ts
-import { SIZE, state, pieces, anim } from './uiState';
-import type { Piece } from './types';
+import { state, pieces } from './uiState';
+import { BOARD8, BOARD10 } from '../../shared/engine/boards';
 import { COLORS, KANJI } from './palette';
-import { colorIdxAt } from "../../shared/engine/boards";
 
-const CANVAS_ID = 'board';
+// Save a callback that rules.ts can call to force a repaint
+let _externalInvalidate = () => {};
+export function registerRenderer(cb: () => void) { _externalInvalidate = cb; }
 
-function getCanvas(): HTMLCanvasElement {
-  const el = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
-  if (!el) throw new Error(`#${CANVAS_ID} canvas not found`);
-  return el;
-}
+type Geom = { x: number; y: number; size: number; tile: number };
 
-/** Resize canvas to be pixel-perfect & square within its container */
-export function resizeBoard() {
-  const canvas = getCanvas();
-  // Fit within the main container while remaining square
-  const parent = canvas.parentElement ?? document.body;
-  const pr = window.devicePixelRatio || 1;
-
-  // Leave some space for top/bottom UI rows if present
-  const parentRect = parent.getBoundingClientRect();
-  const maxCss = Math.min(parentRect.width, parentRect.height);
-
-  // CSS size (logical pixels)
-  const cssSize = Math.floor(maxCss);
-  canvas.style.width = `${cssSize}px`;
-  canvas.style.height = `${cssSize}px`;
-
-  // Backing store size (device pixels)
-  canvas.width = Math.floor(cssSize * pr);
-  canvas.height = Math.floor(cssSize * pr);
-}
-
-/** Main render entry */
-export function render() {
-  const canvas = getCanvas();
+// Compute board geom from the current canvas size and write it to window
+function computeGeom(canvas: HTMLCanvasElement): Geom {
   const ctx = canvas.getContext('2d')!;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const cw = canvas.width;
+  const ch = canvas.height;
+
+  const side = Math.min(cw, ch);
+  const totalPad = Math.floor(side * 0.05);      // 5% padding around grid
+  const gridSize = Math.floor(side - totalPad);
+  const x = Math.floor((cw - gridSize) / 2);
+  const y = Math.floor((ch - gridSize) / 2);
+  const tile = Math.floor(gridSize / state.size);
+
+  const geom: Geom = { x, y, size: tile * state.size, tile };
+  // Expose for input.ts hit-testing
+  (window as any).__boardGeom = geom;
+  return geom;
+}
+
+function drawBoard(ctx: CanvasRenderingContext2D, g: Geom) {
+  // Background behind grid (subtle)
+  ctx.fillStyle = '#101216';
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  // Frame
+  ctx.fillStyle = '#22242c';
+  ctx.fillRect(g.x - 8, g.y - 8, g.size + 16, g.size + 16);
+
+  // Tiles
+  const board = (state.size === 10 ? BOARD10 : BOARD8);
+  for (let r = 0; r < state.size; r++) {
+    for (let c = 0; c < state.size; c++) {
+      const ci = board[r][c];
+      ctx.fillStyle = COLORS[ci];
+      ctx.fillRect(g.x + c * g.tile, g.y + r * g.tile, g.tile, g.tile);
+    }
+  }
+}
+
+function drawPieces(ctx: CanvasRenderingContext2D, g: Geom) {
+  // Selection highlights (legal targets)
+  if (state.selectedIndex !== undefined) {
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for (const t of state.legalTargets) {
+      const cx = g.x + t.c * g.tile + g.tile / 2;
+      const cy = g.y + t.r * g.tile + g.tile / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(6, g.tile * 0.12), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Pieces
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i];
+    const cx = g.x + p.pos.c * g.tile + g.tile / 2;
+    const cy = g.y + p.pos.r * g.tile + g.tile / 2;
+
+    const radius = Math.max(10, g.tile * 0.38);
+    const fg = p.owner === 'White' ? '#fff' : '#111';
+    const stroke = p.owner === 'White' ? '#e7e7e7' : '#000';
+
+    // Disc
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = g.tile * 0.06;
+    ctx.shadowOffsetY = g.tile * 0.04;
+
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.lineWidth = Math.max(2, g.tile * 0.05);
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+
+    // Kanji
+    ctx.fillStyle = p.owner === 'White' ? '#333' : '#eee';
+    ctx.font = `${Math.floor(radius * 0.9)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(KANJI[p.colorIndex], cx, cy + (p.owner === 'White' ? -1 : 1));
+
+    ctx.restore();
+
+    // Selection ring
+    if (i === state.selectedIndex) {
+      ctx.strokeStyle = '#00ff99';
+      ctx.lineWidth = Math.max(2, g.tile * 0.06);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + ctx.lineWidth, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
+export function render() {
+  const canvas = document.getElementById('board') as HTMLCanvasElement | null;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // HUD (keep text off the board)
-  updateHud();
+  const g = computeGeom(canvas);
 
   // Clear
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Tile metrics
-  const tileW = canvas.width / SIZE;
-  const tileH = canvas.height / SIZE;
-
-  // Draw board tiles
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      const ci = colorIdxAt(SIZE as 8 | 10, r, c);
-      ctx.fillStyle = COLORS[ci];
-      ctx.fillRect(c * tileW, r * tileH, tileW, tileH);
-    }
-  }
-
-  // Grid lines (subtle)
-  ctx.lineWidth = Math.max(1, Math.floor(Math.min(tileW, tileH) * 0.02));
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-  for (let r = 0; r <= SIZE; r++) {
-    const y = r * tileH + 0.5;
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-  }
-  for (let c = 0; c <= SIZE; c++) {
-    const x = c * tileW + 0.5;
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-  }
-
-  // Legal move highlights (draw before pieces so pieces appear on top)
-  drawHighlights(ctx, tileW, tileH);
-
-  // Draw pieces (with optional bounce animation)
-  for (let i = 0; i < pieces.length; i++) {
-    drawPiece(ctx, i, tileW, tileH);
-  }
-
-  // Selection ring on top
-  drawSelection(ctx, tileW, tileH);
-}
-
-/* ---------------------------- HUD helpers ---------------------------- */
-
-function updateHud() {
-  const statusEl = document.getElementById('status-label');
-  const reqEl = document.getElementById('required-label');
-
-  if (statusEl) {
-    const base = state.winner
-      ? `${state.winner} wins!`
-      : `Turn: ${state.toMove}`;
-    statusEl.textContent = state.message ? `${base} — ${state.message}` : base;
-  }
-
-  if (reqEl) {
-    if (state.requiredColorIndex === undefined) {
-      reqEl.textContent = 'Required: —';
-    } else {
-      const kanji = KANJI[state.requiredColorIndex] ?? '?';
-      reqEl.textContent = `Required: ${kanji}`;
-    }
-  }
-}
-
-/* ---------------------------- Drawing bits --------------------------- */
-
-function drawHighlights(ctx: CanvasRenderingContext2D, tileW: number, tileH: number) {
-  // Legal target dots
-  if (state.legalTargets?.length) {
-    const radius = Math.min(tileW, tileH) * 0.16;
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.lineWidth = Math.max(1, Math.floor(radius * 0.25));
-    for (const t of state.legalTargets) {
-      const cx = t.c * tileW + tileW / 2;
-      const cy = t.r * tileH + tileH / 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-}
-
-function drawSelection(ctx: CanvasRenderingContext2D, tileW: number, tileH: number) {
-  if (state.selectedIndex === undefined) return;
-  const p = pieces[state.selectedIndex];
-  const x = p.pos.c * tileW;
-  const y = p.pos.r * tileH;
-
-  ctx.save();
-  ctx.lineWidth = Math.max(3, Math.floor(Math.min(tileW, tileH) * 0.06));
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-  ctx.strokeRect(x + 2, y + 2, tileW - 4, tileH - 4);
-
-  ctx.lineWidth = Math.max(1, Math.floor(Math.min(tileW, tileH) * 0.03));
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  ctx.strokeRect(x + 2, y + 2, tileW - 4, tileH - 4);
-  ctx.restore();
-}
-
-function drawPiece(ctx: CanvasRenderingContext2D, idx: number, tileW: number, tileH: number) {
-  const p: Piece = pieces[idx];
-  const x = p.pos.c * tileW;
-  const y = p.pos.r * tileH;
-
-  // Animation (pass bounce): vertical offset
-  let yOffset = 0;
-  if (anim.active && anim.pieceIndex === idx) {
-    const t = Math.min(1, (performance.now() - anim.start) / anim.duration);
-    const eased = easeInOut(t);
-    const amp = tileH * 0.12; // bounce amplitude
-    yOffset = Math.sin(eased * Math.PI) * -amp; // up and back down
-  }
-
-  const cx = x + tileW / 2;
-  const cy = y + tileH / 2 + yOffset;
-  const radius = Math.min(tileW, tileH) * 0.36;
-
-  // Disk background: black or white by owner
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fillStyle = p.owner === 'White' ? '#ffffff' : '#111111';
-  ctx.fill();
-
-  // subtle rim
-  ctx.lineWidth = Math.max(2, Math.floor(radius * 0.15));
-  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-  ctx.stroke();
-
-  // Kanji glyph in the piece's COLOR (high contrast against disk)
-  ctx.fillStyle = COLORS[p.colorIndex] ?? '#ff00ff';
-  ctx.font = `${Math.floor(radius * 1.3)}px "Noto Sans JP", "Yu Gothic", "Hiragino Kaku Gothic Pro", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = p.owner === 'White' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.25)';
-  ctx.shadowBlur = Math.floor(radius * 0.2);
-  ctx.fillText(KANJI[p.colorIndex] ?? '?', cx, cy);
-  ctx.restore();
-}
-
-/* ---------------------------- Utilities --------------------------- */
-
-function easeInOut(t: number) {
-  // smootherstep
-  return t * t * t * (t * (t * 6 - 15) + 10);
+  // Board + pieces (board will show even if pieces array is temporarily empty)
+  drawBoard(ctx, g);
+  drawPieces(ctx, g);
 }
