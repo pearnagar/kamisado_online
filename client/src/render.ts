@@ -2,6 +2,7 @@
 import { state, pieces } from './uiState';
 import { BOARD8, BOARD10 } from '../../shared/engine/boards';
 import { COLORS, KANJI } from './palette';
+import { selectPieceAt, tryMoveTo } from './rules';   // ← added
 
 // Save a callback that rules.ts can call to force a repaint
 let _externalInvalidate = () => {};
@@ -11,7 +12,6 @@ type Geom = { x: number; y: number; size: number; tile: number };
 
 // Compute board geom from the current canvas size and write it to window
 function computeGeom(canvas: HTMLCanvasElement): Geom {
-  const ctx = canvas.getContext('2d')!;
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const cw = canvas.width;
   const ch = canvas.height;
@@ -24,7 +24,7 @@ function computeGeom(canvas: HTMLCanvasElement): Geom {
   const tile = Math.floor(gridSize / state.size);
 
   const geom: Geom = { x, y, size: tile * state.size, tile };
-  // Expose for input.ts hit-testing
+  // Expose for hit-testing (optional)
   (window as any).__boardGeom = geom;
   return geom;
 }
@@ -120,7 +120,36 @@ export function render() {
   // Clear
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Board + pieces (board will show even if pieces array is temporarily empty)
+  // Board + pieces
   drawBoard(ctx, g);
   drawPieces(ctx, g);
+}
+
+/* ------------------ helpers for input.ts ------------------ */
+
+/** Rectangle (in device pixels) where the board is drawn */
+export function getBoardRect(canvas: HTMLCanvasElement) {
+  const g: Geom = (window as any).__boardGeom || computeGeom(canvas);
+  return { left: g.x, top: g.y, size: g.size, tile: g.tile };
+}
+
+/** Convert mouse/touch pixel point to board row/col */
+export function boardCoordFromMouse(
+  pt: { x: number; y: number },
+  rect: { left: number; top: number; size: number; tile?: number }
+) {
+  const tile = rect.tile ?? (rect.size / state.size);
+  const c = Math.floor((pt.x - rect.left) / tile);
+  const r = Math.floor((pt.y - rect.top) / tile);
+  if (r < 0 || r >= state.size || c < 0 || c >= state.size) return null;
+  return { r, c };
+}
+
+/** Used by input to either select a piece or finish a move */
+export function trySelectOrMove(r: number, c: number) {
+  if (state.selectedIndex === undefined) {
+    selectPieceAt(r, c);
+  } else {
+    tryMoveTo(r, c);
+  }
 }

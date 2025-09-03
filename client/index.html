@@ -1,43 +1,144 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Kamisado – Home</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      margin: 2rem;
-    }
-    h1 { margin-bottom: 1rem; }
-    .options {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      align-items: center;
-    }
-    button {
-      padding: 0.6rem 1.2rem;
-      font-size: 1rem;
-      border-radius: 6px;
-      border: 1px solid #444;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-  <h1>Kamisado</h1>
-  <div class="options">
-    <h2>Play Mode</h2>
-    <button onclick="location.href='game.html?mode=single&size=8&human=white'">Singleplayer – 8×8 (Human White)</button>
-    <button onclick="location.href='game.html?mode=single&size=8&human=black'">Singleplayer – 8×8 (Human Black)</button>
-    <button onclick="location.href='game.html?mode=multi&size=8'">Multiplayer (local) – 8×8</button>
-    <button onclick="location.href='game.html?mode=single&size=10&human=white'">Singleplayer – 10×10 (Human White)</button>
-    <button onclick="location.href='game.html?mode=single&size=10&human=black'">Singleplayer – 10×10 (Human Black)</button>
-    <button onclick="location.href='game.html?mode=multi&size=10'">Multiplayer (local) – 10×10</button>
-    <button onclick="location.href='game.html?online=1&size=8'">Online – 8×8</button>
-    <button onclick="location.href='game.html?online=1&size=10'">Online – 10×10</button>
-  </div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Kamisado — Home</title>
+    <style>
+      :root {
+        --bg: #0f0f12;
+        --panel: #17181e;
+        --text: #e9eef5;
+        --muted: #a9b1c3;
+        --accent: #4ea1ff;
+      }
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: radial-gradient(1200px 800px at 50% -10%, #1b1c23, #0f0f12);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      }
+      .wrap {
+        min-height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header, footer {
+        background: rgba(23,24,30,0.9);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        padding: 14px 18px;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.3px;
+      }
+      main {
+        display: grid;
+        place-items: center;
+        padding: 32px 16px;
+      }
+      .grid {
+        width: min(1100px, 92vw);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        background: rgba(23,24,30,0.75);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      }
+      .card h2 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      a.btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: #232530;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+      a.btn:hover { background: #2b2e3a; border-color: rgba(255,255,255,0.18); }
+      a.btn:active { transform: translateY(1px); }
+      footer {
+        border-top: 1px solid rgba(255,255,255,0.06);
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Kamisado</h1>
+      </header>
+
+      <main>
+        <div class="grid">
+          <!-- Singleplayer -->
+          <section class="card">
+            <h2>Singleplayer vs Bot</h2>
+            <p class="muted">Play against the computer. White always moves first.</p>
+            <div class="row">
+              <a class="btn" href="/game.html?mode=single&size=8&human=white&bot=1">You White (8×8)</a>
+              <a class="btn" href="/game.html?mode=single&size=10&human=white&bot=1">You White (10×10)</a>
+              <a class="btn" href="/game.html?mode=single&size=8&human=black&bot=1">You Black (8×8)</a>
+              <a class="btn" href="/game.html?mode=single&size=10&human=black&bot=1">You Black (10×10)</a>
+            </div>
+          </section>
+
+          <!-- Local 2-player (same device) -->
+          <section class="card">
+            <h2>Local Two-Player</h2>
+            <p class="muted">Two humans on one device.</p>
+            <div class="row">
+              <a class="btn" href="/game.html?mode=single&size=8&human=white">Standard (8×8)</a>
+              <a class="btn" href="/game.html?mode=single&size=10&human=white">Mega (10×10)</a>
+              <a class="btn" href="/game.html?mode=single&size=8&human=black">Transposed (8×8)</a>
+              <a class="btn" href="/game.html?mode=single&size=10&human=black">Transposed (10×10)</a>
+            </div>
+          </section>
+
+          <!-- Online Multiplayer -->
+          <section class="card">
+            <h2>Online Multiplayer</h2>
+            <p class="muted">Create a room and share the link to play online.</p>
+            <div class="row">
+              <a class="btn" href="/game.html?mode=online&size=8">Standard (8×8)</a>
+              <a class="btn" href="/game.html?mode=online&size=10">Mega (10×10)</a>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        Made with ♟️ &nbsp;•&nbsp; Use the back button to return here from a game.
+      </footer>
+    </div>
+  </body>
 </html>

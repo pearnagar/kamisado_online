@@ -6,12 +6,12 @@ export const COLORS: string[] = [
   '#0080ff', // Blue
   '#ff0080', // Pink
   '#008000', // Green
-  '#ffff00', // Yellow
+  '#ecec1fff', // Yellow
   '#8b00ff', // Purple
   '#ff0000', // Red
   '#8b4513', // Brown
   '#c0c0c0', // Silver (only for 10x10)
-  '#ffd700', // Gold   (only for 10x10)
+  'rgba(255, 225, 57, 0.73)', // Gold   (only for 10x10)
 ];
 
 // Kanji symbols matching COLORS order

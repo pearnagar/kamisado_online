@@ -1,75 +1,73 @@
 // client/src/main.ts
-import { MODE, state } from './uiState';
+import { MODE, SIZE, BOTTOM_OWNER, setSize, setBottomOwner } from './uiState';
 import { initLocalGame } from './setup';
 import { initInput, updateToolbar } from './input';
 import { render, registerRenderer } from './render';
 import { initOnlineGame } from './net/online';
+import { botPlayIfNeeded } from './ai';
 
-// Attach & size the canvas to the viewport, keeping it square and pixel-aligned.
+/* ------------ Canvas sizing (no render here) ------------ */
 function attachCanvas(canvas: HTMLCanvasElement) {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-  const headerH = 48;  // matches game.html header padding/height
-  const footerH = 40;  // matches game.html footer padding/height
-  const usableW = window.innerWidth;
-  const usableH = Math.max(0, window.innerHeight - headerH - footerH);
-
-  const cssSide = Math.floor(Math.min(usableW, usableH));
-  const pixelSide = Math.max(1, Math.floor(cssSide * dpr));
-
-  canvas.style.width = `${cssSide}px`;
-  canvas.style.height = `${cssSide}px`;
-  canvas.width = pixelSide;
-  canvas.height = pixelSide;
-
-  // First render immediately after sizing
-  render();
+  const sideCSS = Math.max(100, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.92));
+  const px = Math.max(100, Math.floor(sideCSS * dpr));
+  canvas.style.width = `${sideCSS}px`;
+  canvas.style.height = `${sideCSS}px`;
+  canvas.width = px;
+  canvas.height = px;
 }
 
 function onResize() {
   const canvas = document.getElementById('board') as HTMLCanvasElement | null;
   if (!canvas) return;
   attachCanvas(canvas);
+  render();
 }
 
+/* ------------ Render loop ------------ */
 function loop() {
   render();
+  // IMPORTANT: only allow the bot to act in offline (single-player) mode.
+  if (MODE !== 'online') botPlayIfNeeded();
   requestAnimationFrame(loop);
 }
 
 window.addEventListener('load', () => {
   const canvas = document.getElementById('board') as HTMLCanvasElement | null;
   if (!canvas) {
-    console.error('Canvas #board not found.');
+    console.error('Canvas #board not found');
     return;
   }
 
-  // Allow rules.ts to trigger re-render
+  // Prime state from uiState (uiState already read URL params)
+  setSize(SIZE);
+  setBottomOwner(BOTTOM_OWNER);
+
+  // Let rules.ts trigger paints without importing render.ts directly
   registerRenderer(() => {
     render();
     updateToolbar();
   });
 
-  // Size canvas and do an initial paint
+  // Layout canvas first
   attachCanvas(canvas);
 
-  // Wire inputs (buttons + clicks)
+  // Hook inputs and resize
   initInput(canvas);
-
-  // Always create a visible board immediately
-  initLocalGame(8);
-
-  // If this is the online page, start socket after we have something on screen
-  if (MODE === 'online') {
-    initOnlineGame();
-  }
-
-  // First status update
-  updateToolbar();
-
-  // Repaint on resize
   window.addEventListener('resize', onResize);
 
-  // Animation loop (high-frequency re-paint keeps animations smooth)
+  if (MODE === 'online') {
+    // ONLINE: do not start a local game, do not run the bot.
+    // Show an empty/neutral board; online module will push the first snapshot.
+    updateToolbar();
+    render();                 // draws background until server snapshot arrives
+    initOnlineGame();         // this will set pieces/state from the server
+  } else {
+    // OFFLINE (single-player or hotseat): start a fresh local game.
+    initLocalGame();          // MUST create pieces on home rows
+    updateToolbar();
+    render();
+  }
+
   requestAnimationFrame(loop);
 });

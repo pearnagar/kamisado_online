@@ -1,59 +1,38 @@
-// client/src/uiState.ts
-// Central reactive state for the game, shared by render, input, rules, etc.
-
 import type { Player } from './types';
 
-/** Which mode we’re running in. Set once at page load. */
+const qs = new URLSearchParams(location.search);
+
+// mode & size
 export const MODE: 'offline' | 'online' =
-  (window.location.pathname.includes('online') ? 'online' : 'offline');
+  (qs.get('mode') || '').toLowerCase() === 'online' ? 'online' : 'offline';
 
-/** Current board size (8 or 10). */
-export let SIZE: 8 | 10 = 8;
+export let SIZE: 8 | 10 = (qs.get('size') === '10') ? 10 : 8;
+export function setSize(sz: 8 | 10) { SIZE = sz; state.size = sz; }
 
-/** Change board size (used by setup.ts). */
-export function setSize(sz: 8 | 10) {
-  SIZE = sz;
-  state.size = sz;
-}
+// who sits at the **bottom** (human in single-player)
+export let BOTTOM_OWNER: Player =
+  (qs.get('human') || 'white').toLowerCase() === 'black' ? 'Black' : 'White';
+export function setBottomOwner(p: Player) { BOTTOM_OWNER = p; }
 
-/** Active pieces (both players). */
-export const pieces: {
-  owner: Player;
-  colorIndex: number;
-  pos: { r: number; c: number };
-}[] = [];
+// pieces + state
+export const pieces: { owner: Player; colorIndex: number; pos: {r:number;c:number} }[] = [];
+export const anim = { active:false, kind: undefined as undefined|'passStep', pieceIndex: undefined as number|undefined, start:0, duration:350 };
 
-/** Global animation state (for pass-step bounce). */
-export const anim: {
-  active: boolean;
-  kind?: 'passStep';
-  pieceIndex?: number;
-  start: number;
-  duration: number;
-} = {
-  active: false,
-  start: 0,
-  duration: 350,
-};
-
-/** Core mutable state. */
-export const state: {
-  size: 8 | 10;
-  toMove: Player;
-  requiredColorIndex?: number;
-  selectedIndex?: number;
-  legalTargets: { r: number; c: number }[];
-  winner?: Player;
-  message: string;
-} = {
-  size: SIZE,
-  toMove: 'White',
-  requiredColorIndex: undefined,
-  selectedIndex: undefined,
-  legalTargets: [],
-  winner: undefined,
+export const state = {
+  size: SIZE as 8|10,
+  toMove: 'White' as Player,     // Kamisado rule: White starts
+  requiredColorIndex: undefined as number|undefined,
+  selectedIndex: undefined as number|undefined,
+  legalTargets: [] as {r:number;c:number}[],
+  winner: undefined as Player|undefined,
   message: 'Ready.',
 };
 
-/** If BOT is non-null, offline games have a computer opponent. */
-export const BOT: Player | null = null; // for now, always human vs human in offline
+// ---- BOT selection (single-player only, one side only) ----
+const botOn = (qs.get('bot') || '') === '1';
+export const BOT: Player | null =
+  MODE === 'offline' && botOn ? (BOTTOM_OWNER === 'White' ? 'Black' : 'White') : null;
+
+// handy guards
+export const isOnline = () => MODE === 'online';
+export const isBotsTurn = () => BOT !== null && state.toMove === BOT;
