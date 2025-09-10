@@ -1,5 +1,5 @@
 // client/src/main.ts
-import { MODE, setSize, setBottomOwner } from './uiState';
+import { MODE, setSize, setBottomOwner, state } from './uiState';
 import { initLocalGame } from './setup';
 import { initInput, updateToolbar } from './input';
 import { render, registerRenderer } from './render';
@@ -58,9 +58,77 @@ function showFatal(err: unknown) {
   if (footer) footer.textContent = `⚠️ ${String(err)}`;
 }
 
-// Ensure we don’t miss an exception during boot
+// Ensure we don't miss an exception during boot
 window.addEventListener('error', ev => showFatal(ev.error ?? ev.message));
 window.addEventListener('unhandledrejection', ev => showFatal(ev.reason ?? 'Unhandled promise rejection'));
+
+// Listen for game-over events
+document.addEventListener('game-over', (e) => {
+  const customEvent = e as CustomEvent<{winner: string}>;
+  console.log('Game over event received:', customEvent.detail);
+  const { winner } = customEvent.detail;
+  
+  // Update UI to show game over state
+  const turnElement = document.getElementById('turn-player');
+  if (turnElement) {
+    turnElement.textContent = `${winner} won!`;
+    turnElement.style.fontWeight = 'bold';
+  }
+  
+  // Check if overlay already exists
+  const existingOverlay = document.getElementById('game-over-overlay');
+  if (existingOverlay) {
+    existingOverlay.style.display = 'flex';
+    return;
+  }
+  
+  // Create a game over overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'game-over-overlay';
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  overlay.style.display = 'flex';
+  overlay.style.justifyContent = 'center';
+  overlay.style.alignItems = 'center';
+  overlay.style.zIndex = '1000';
+  
+  const message = document.createElement('div');
+  message.textContent = `${winner} wins!`;
+  message.style.backgroundColor = '#fff';
+  message.style.padding = '20px 40px';
+  message.style.borderRadius = '10px';
+  message.style.fontSize = '2em';
+  message.style.fontWeight = 'bold';
+  
+  // Add a close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close';
+  closeButton.style.marginTop = '20px';
+  closeButton.style.padding = '10px 20px';
+  closeButton.style.fontSize = '1em';
+  closeButton.style.cursor = 'pointer';
+  closeButton.style.display = 'block';
+  closeButton.style.margin = '20px auto 0';
+  
+  closeButton.addEventListener('click', () => {
+    overlay.style.display = 'none';
+  });
+  
+  const container = document.createElement('div');
+  container.style.textAlign = 'center';
+  container.appendChild(message);
+  container.appendChild(closeButton);
+  
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
+  
+  // We don't need to set state.winner here as it should already be set
+  // in the rules.ts file when the win condition is detected
+});
 
 window.addEventListener('load', () => {
   try {

@@ -253,6 +253,24 @@ function drawHoverHighlight(ctx: CanvasRenderingContext2D, g: Geom, hoverPos: { 
   ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
 }
 export function render() {
+  // Check for win condition before rendering
+  for (const p of pieces) {
+    const opponentHomeRow = p.owner === 'White' ? 0 : state.size - 1;
+    if (p.pos.r === opponentHomeRow) {
+      if (!state.winner) {
+        console.log(`Win detected during render: ${p.owner} wins!`);
+        state.winner = p.owner;
+        state.message = `${p.owner} wins!`;
+        
+        // Dispatch event to update UI
+        document.dispatchEvent(new CustomEvent('game-over', { 
+          detail: { winner: p.owner } 
+        }));
+      }
+      break;
+    }
+  }
+  
   const canvas = document.getElementById('board') as HTMLCanvasElement | null;
   if (!canvas) return;
 

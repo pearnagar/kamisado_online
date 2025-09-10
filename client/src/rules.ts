@@ -48,7 +48,17 @@ export function legalMovesForPiece(pi: number) {
 
 /* ------------------------ Selection ------------------------- */
 
+export function isGameOver() {
+  return state.winner !== undefined;
+}
+
 export function selectPieceAt(r: number, c: number) {
+  // Check if game is over first
+  if (isGameOver()) {
+    console.log("Game is over, no more piece selection allowed");
+    return;
+  }
+
   const idx = pieceIndexAt(r, c);
   if (idx === -1) return;
 
@@ -69,6 +79,12 @@ export function selectPieceAt(r: number, c: number) {
  * Returns true if the move is applied, false otherwise.
  */
 export function tryMoveTo(r: number, c: number): boolean {
+  // Check if game is already over
+  if (state.winner) {
+    console.log("Game is already over, no more moves allowed");
+    return false;
+  }
+
   const idx = state.selectedIndex;
   if (idx === undefined) return false;
 
@@ -84,24 +100,33 @@ export function tryMoveTo(r: number, c: number): boolean {
   // apply
   p.pos = to;
 
-  // win?
+  // Check for win condition - if a piece reaches the opponent's home row
   const opp: Player = p.owner === 'White' ? 'Black' : 'White';
   const winRow = (opp === 'White') ? 0 : (state.size - 1);
+  
+  console.log(`Checking win: piece at row ${r}, win row is ${winRow}, owner: ${p.owner}`);
+  
   if (r === winRow) {
+    console.log(`WIN DETECTED: ${p.owner} wins!`);
     state.winner = p.owner;
     state.message = `${p.owner} wins!`;
     state.requiredColorIndex = undefined;
     state.selectedIndex = undefined;
     state.legalTargets = [];
-    _render();
-    updateHeader(); // Update header after state change
+    
+    // Dispatch event to update UI
+    document.dispatchEvent(new CustomEvent('game-over', { 
+      detail: { winner: p.owner } 
+    }));
+    
+    if (typeof _render === 'function') {
+      _render();
+    }
     return true;
   }
 
   // next required color is landing square
-  const newRequiredColorIndex = colorIdxAt(state.size as 8 | 10, r, c);
-  console.log(`Setting required color index to ${newRequiredColorIndex} from square (${r},${c})`);
-  state.requiredColorIndex = newRequiredColorIndex;
+  state.requiredColorIndex = colorIdxAt(state.size as 8 | 10, r, c);
 
   // switch turn & clear selection
   state.toMove = opp;
@@ -109,7 +134,8 @@ export function tryMoveTo(r: number, c: number): boolean {
   state.legalTargets = [];
   state.message = '';
 
-  _render();
-  updateHeader(); // Update header after state change
+  if (typeof _render === 'function') {
+    _render();
+  }
   return true;
 }

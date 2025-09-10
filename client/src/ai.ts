@@ -1,12 +1,19 @@
 // client/src/ai.ts
 import { legalMovesForPiece, tryMoveTo } from './rules';
 import { BOT, state, anim, pieces } from './uiState';
+import { isGameOver } from './ui/header';
 
 /**
  * Find a legal move for the bot to play
  * This function respects the required color constraint and makes smarter choices
  */
 function findBotMove(): { pieceIndex: number; to: { r: number; c: number } } | null {
+  // Check if game is already over
+  if (state.winner) {
+    console.log("Game is already over, bot will not move");
+    return null;
+  }
+
   // If there's a required color, we must use a piece of that color
   if (state.requiredColorIndex !== undefined) {
     // Find the piece with the required color that belongs to the bot
@@ -80,10 +87,21 @@ function findBotMove(): { pieceIndex: number; to: { r: number; c: number } } | n
  * Make the bot play a move if it's the bot's turn
  */
 export function botPlayIfNeeded() {
+  // First, check if the game is already over by examining the board
+  if (checkForWin()) {
+    console.log("Win detected, game is over");
+    return;
+  }
+  
   if (!BOT) return;                    // no bot configured (hotseat)
   if (state.toMove !== BOT) return;    // not bot's turn
   if (anim.active) return;             // wait for animation to finish
-  if (state.winner) return;            // game is over
+  
+  // Double-check if game is already over
+  if (state.winner) {
+    console.log("Game is already over, bot will not play");
+    return;
+  }
 
   const mv = findBotMove();            // find the best move
   if (!mv) return;                     // no legal moves available
@@ -92,4 +110,42 @@ export function botPlayIfNeeded() {
   state.selectedIndex = mv.pieceIndex;
   state.legalTargets = legalMovesForPiece(mv.pieceIndex);
   tryMoveTo(mv.to.r, mv.to.c);
+  
+  // Check if this move resulted in a win
+  checkForWin();
+}
+
+/**
+ * Check if any player has won the game by examining the board state
+ * @returns true if a player has won, false otherwise
+ */
+function checkForWin(): boolean {
+  // First check if winner is already set in state
+  if (state.winner) {
+    return true;
+  }
+  
+  // Check if any piece has reached the opponent's home row
+  for (const p of pieces) {
+    const opponentHomeRow = p.owner === 'White' ? 0 : state.size - 1;
+    
+    if (p.pos.r === opponentHomeRow) {
+      console.log(`WIN DETECTED in AI: ${p.owner} has a piece at opponent's home row`);
+      
+      // Update game state
+      state.winner = p.owner;
+      state.message = `${p.owner} wins!`;
+      state.requiredColorIndex = undefined; // Clear required color on win
+      
+      // Dispatch event to update UI
+      document.dispatchEvent(new CustomEvent('game-over', { 
+        detail: { winner: p.owner } 
+      }));
+      
+      return true;
+    }
+  }
+  
+  // If we get here, no win condition was found
+  return false;
 }
