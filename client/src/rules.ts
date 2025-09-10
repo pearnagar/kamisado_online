@@ -3,6 +3,7 @@ import type { Player } from './types';
 import { state, pieces } from './uiState';
 import { colorIdxAt } from '../../shared/engine/boards';
 import { recordMove } from './history';
+import { updateHeader } from './ui/header';
 
 // Let render.ts register a repaint callback without circular deps
 let _render = () => {};
@@ -58,6 +59,7 @@ export function selectPieceAt(r: number, c: number) {
   state.selectedIndex = idx;
   state.legalTargets = legalMovesForPiece(idx);
   _render();
+  updateHeader(); // Update header after selection
 }
 
 /* -------------------------- Moving -------------------------- */
@@ -92,11 +94,14 @@ export function tryMoveTo(r: number, c: number): boolean {
     state.selectedIndex = undefined;
     state.legalTargets = [];
     _render();
+    updateHeader(); // Update header after state change
     return true;
   }
 
   // next required color is landing square
-  state.requiredColorIndex = colorIdxAt(state.size as 8 | 10, r, c);
+  const newRequiredColorIndex = colorIdxAt(state.size as 8 | 10, r, c);
+  console.log(`Setting required color index to ${newRequiredColorIndex} from square (${r},${c})`);
+  state.requiredColorIndex = newRequiredColorIndex;
 
   // switch turn & clear selection
   state.toMove = opp;
@@ -105,5 +110,6 @@ export function tryMoveTo(r: number, c: number): boolean {
   state.message = '';
 
   _render();
+  updateHeader(); // Update header after state change
   return true;
 }

@@ -6,6 +6,14 @@ export type Player = 'White' | 'Black';
 /** Board coordinate */
 export type Pos = { r: number; c: number };
 
+/** Canvas geometry for rendering the board */
+export type Geom = {
+  size: number; // canvas dimension
+  tile: number; // tile size in pixels
+  x: number;    // board top-left x
+  y: number;    // board top-left y
+};
+
 /** UI-side piece shape (note: engine uses a different "PieceCore") */
 export type Piece = {
   owner: Player;

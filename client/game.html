@@ -42,7 +42,7 @@
         position: fixed;
         top: 0; left: 0; right: 0;
         z-index: 10;
-        pointer-events: none; /* don’t block canvas */
+        pointer-events: none; /* don't block canvas */
       }
       header * { pointer-events: auto; }
       header h1 {
@@ -62,8 +62,14 @@
       #status strong { color: var(--text); }
 
       main {
-        display: grid;
-        place-items: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden; /* prevent scrolling */
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        height: 100%;
       }
 
       /* Board canvas fills available space, JS resizes it */
@@ -75,17 +81,24 @@
         position: relative;
         z-index: 1;
         pointer-events: auto;
+        width: min(90vw, 90vh);
+        height: min(90vw, 90vh);
+        max-width: 800px;
+        max-height: 800px;
+        margin: 0 auto; /* Center horizontally */
       }
-
       footer {
-        padding: 8px 16px;
+        padding: 2px 12px; /* Adjust padding to make it shorter */
         background: var(--panel);
         border-top: 1px solid rgba(255,255,255,0.06);
-        font-size: 13px;
+        font-size: 12px; /* Adjust font size to make it smaller */
         color: var(--muted);
+        text-align: center;
         pointer-events: none; /* don’t block bottom rows */
+        z-index: 15; /* Ensure footer is in front */
+        position: relative;
       }
-      #msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; margin: 0 auto; }
 
       /* Floating toolbar bottom-left */
       #toolbar {
@@ -123,23 +136,62 @@
         opacity: 0.5;
         cursor: not-allowed;
       }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        header {
+          padding: 8px 12px;
+        }
+        header h1 {
+          font-size: 14px;
+        }
+        #status {
+          gap: 12px;
+          font-size: 12px;
+        }
+        #toolbar {
+          left: 8px;
+          bottom: 8px;
+          gap: 6px;
+          padding: 6px;
+        }
+        #toolbar button {
+          padding: 4px 8px;
+          font-size: 12px;
+        }
+        #board {
+          width: min(95vw, 95vh);
+          height: min(95vw, 95vh);
+          max-width: 600px;
+          max-height: 600px;
+        }
+      }
+
+      @media (min-width: 1200px) {
+        #board {
+          width: min(80vw, 80vh);
+          height: min(80vw, 80vh);
+          max-width: 900px;
+          max-height: 900px;
+        }
+      }
     </style>
   </head>
 
   <body>
     <div id="app">
       <header>
-        <h1>Kamisado</h1>
-        <div class="sep"></div>
-        <div id="status">
-          <span id="room-label">Room: —</span>
-          <span id="status-label">Turn: <strong>—</strong></span>
-          <span id="required-label">Required: <strong>—</strong></span>
-        </div>
+      <h1>Kamisado</h1>
+      <div class="sep"></div>
+      <div id="status">
+        <span id="room-label" style="display: none;">Room: <strong id="room-code">—</strong></span>
+        <span id="status-label">Turn: <strong id="turn-player">—</strong></span>
+        <span id="required-label">Required: <strong id="required-color">—</strong></span>
+      </div>
       </header>
 
       <main>
-        <canvas id="board" width="900" height="900" aria-label="Kamisado board" style="width: 90vmin; height: 90vmin; display: block;"></canvas>
+        <canvas id="board" width="800" height="800" aria-label="Kamisado board"></canvas>
       </main>
 
       <footer>
@@ -149,6 +201,7 @@
 
     <!-- Floating toolbar -->
     <div id="toolbar">
+      <button id="home-btn" type="button" title="Go to home page">🏠 Home</button>
       <button id="reset-btn" type="button" title="Start a new local game">New Game</button>
       <button id="undo-btn"  type="button" title="Undo last move">Undo</button>
       <button id="redo-btn"  type="button" title="Redo move">Redo</button>

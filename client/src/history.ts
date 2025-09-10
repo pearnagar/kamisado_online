@@ -5,6 +5,7 @@
 import type { Player } from './types';
 import { state, pieces } from './uiState';
 import { colorIdxAt } from '../../shared/engine/boards';
+import { updateHeader } from './ui/header';
 
 export type MoveAction = {
   kind: 'move';
@@ -64,6 +65,7 @@ export function undo() {
 
   state.selectedIndex = undefined;
   state.legalTargets = [];
+  updateHeader(); // Update header after undo
 }
 
 /** Redo last undone action (only local). */
@@ -92,6 +94,7 @@ export function redo() {
 
   state.selectedIndex = undefined;
   state.legalTargets = [];
+  updateHeader(); // Update header after redo
 }
 
 /** Record a move before mutating state. */

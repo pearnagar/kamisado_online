@@ -5,6 +5,7 @@ import { initInput, updateToolbar } from './input';
 import { render, registerRenderer } from './render';
 import { initOnlineGame } from './net/online';
 import { botPlayIfNeeded } from './ai';
+import { updateHeader } from './ui/header';
 
 function getParams() {
   const qs = new URLSearchParams(window.location.search);
@@ -14,14 +15,25 @@ function getParams() {
 }
 
 function attachCanvas(canvas: HTMLCanvasElement) {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const cssSide = Math.max(600, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.90)); // מינימום 600px
-  const px = Math.floor(cssSide * dpr);
-
-  canvas.style.width  = `${cssSide}px`;
-  canvas.style.height = `${cssSide}px`;
-  canvas.width  = px;
-  canvas.height = px;
+  // Get the canvas element's display size
+  const rect = canvas.getBoundingClientRect();
+  const displayWidth = rect.width;
+  const displayHeight = rect.height;
+  
+  // Set the canvas internal size to match display size for crisp rendering
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = displayWidth * dpr;
+  canvas.height = displayHeight * dpr;
+  
+  // Scale the context to match device pixel ratio
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.scale(dpr, dpr);
+  }
+  
+  // Set CSS size to match display size
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
 }
 
 
@@ -59,7 +71,7 @@ window.addEventListener('load', () => {
     setSize(size);
     setBottomOwner(human);
 
-    registerRenderer(() => { render(); updateToolbar(); });
+    registerRenderer(() => { render(); updateToolbar(); updateHeader(); });
 
     // 1st paint path: size canvas, attach inputs, init local board, paint
     attachCanvas(canvas);
@@ -67,6 +79,7 @@ window.addEventListener('load', () => {
     initLocalGame();     // guarantees visible board + pieces
     updateToolbar();
     render();
+    updateHeader();      // Initialize header right after first render
 
     // If ONLINE, connect afterwards (will replace state via snapshot)
     if (MODE === 'online') initOnlineGame();
