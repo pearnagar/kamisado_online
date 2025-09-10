@@ -2,43 +2,58 @@
 import { state, pieces } from './uiState';
 import { BOARD8, BOARD10 } from '../../shared/engine/boards';
 import { COLORS, KANJI } from './palette';
-import { selectPieceAt, tryMoveTo } from './rules';   // ← added
+
+// ---------- NEW: cache the last geometry for hit-testing ----------
+type Geom = { x: number; y: number; size: number; tile: number };
+let lastGeom: Geom | null = null;
 
 // Save a callback that rules.ts can call to force a repaint
 let _externalInvalidate = () => {};
 export function registerRenderer(cb: () => void) { _externalInvalidate = cb; }
 
-type Geom = { x: number; y: number; size: number; tile: number };
+// ---------- NEW: expose mouse→board conversion ----------
+/** Convert a mouse client position to board row/col, or null if outside. */
+export function boardCoordFromMouse(canvas: HTMLCanvasElement, clientX: number, clientY: number)
+  : { r: number; c: number } | null
+{
+  if (!lastGeom) return null;
+  const rect = canvas.getBoundingClientRect();
+  const gx = clientX - rect.left - lastGeom.x;
+  const gy = clientY - rect.top  - lastGeom.y;
+
+  if (gx < 0 || gy < 0) return null;
+  const r = Math.floor(gy / lastGeom.tile);
+  const c = Math.floor(gx / lastGeom.tile);
+
+  if (r < 0 || c < 0 || r >= state.size || c >= state.size) return null;
+  return { r, c };
+}
 
 // Compute board geom from the current canvas size and write it to window
 function computeGeom(canvas: HTMLCanvasElement): Geom {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const cw = canvas.width;
-  const ch = canvas.height;
-
+  const cw = canvas.width, ch = canvas.height;
   const side = Math.min(cw, ch);
-  const totalPad = Math.floor(side * 0.05);      // 5% padding around grid
-  const gridSize = Math.floor(side - totalPad);
-  const x = Math.floor((cw - gridSize) / 2);
-  const y = Math.floor((ch - gridSize) / 2);
-  const tile = Math.floor(gridSize / state.size);
+  const totalPad = Math.floor(side * 0.05);      // 5% padding
+  const gridSize = Math.max(1, Math.floor(side - totalPad));
+  const size = (state.size === 10 || state.size === 8) ? state.size : 8;
+  const tile = Math.max(1, Math.floor(gridSize / size));
+  const sizePx = tile * size;
+  const x = Math.floor((cw - sizePx) / 2);
+  const y = Math.floor((ch - sizePx) / 2);
 
-  const geom: Geom = { x, y, size: tile * state.size, tile };
-  // Expose for hit-testing (optional)
-  (window as any).__boardGeom = geom;
+  const geom: Geom = { x, y, size: sizePx, tile };
+  (window as any).__boardGeom = geom; // optional debug
+  lastGeom = geom;                    // ---------- NEW: cache it ----------
   return geom;
 }
 
 function drawBoard(ctx: CanvasRenderingContext2D, g: Geom) {
-  // Background behind grid (subtle)
   ctx.fillStyle = '#101216';
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  // Frame
   ctx.fillStyle = '#22242c';
   ctx.fillRect(g.x - 8, g.y - 8, g.size + 16, g.size + 16);
 
-  // Tiles
   const board = (state.size === 10 ? BOARD10 : BOARD8);
   for (let r = 0; r < state.size; r++) {
     for (let c = 0; c < state.size; c++) {
@@ -49,107 +64,17 @@ function drawBoard(ctx: CanvasRenderingContext2D, g: Geom) {
   }
 }
 
-function drawPieces(ctx: CanvasRenderingContext2D, g: Geom) {
-  // Selection highlights (legal targets)
-  if (state.selectedIndex !== undefined) {
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    for (const t of state.legalTargets) {
-      const cx = g.x + t.c * g.tile + g.tile / 2;
-      const cy = g.y + t.r * g.tile + g.tile / 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, Math.max(6, g.tile * 0.12), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  // Pieces
-  for (let i = 0; i < pieces.length; i++) {
-    const p = pieces[i];
-    const cx = g.x + p.pos.c * g.tile + g.tile / 2;
-    const cy = g.y + p.pos.r * g.tile + g.tile / 2;
-
-    const radius = Math.max(10, g.tile * 0.38);
-    const fg = p.owner === 'White' ? '#fff' : '#111';
-    const stroke = p.owner === 'White' ? '#e7e7e7' : '#000';
-
-    // Disc
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = g.tile * 0.06;
-    ctx.shadowOffsetY = g.tile * 0.04;
-
-    ctx.fillStyle = fg;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.lineWidth = Math.max(2, g.tile * 0.05);
-    ctx.strokeStyle = stroke;
-    ctx.stroke();
-
-    // Kanji
-    ctx.fillStyle = p.owner === 'White' ? '#333' : '#eee';
-    ctx.font = `${Math.floor(radius * 0.9)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(KANJI[p.colorIndex], cx, cy + (p.owner === 'White' ? -1 : 1));
-
-    ctx.restore();
-
-    // Selection ring
-    if (i === state.selectedIndex) {
-      ctx.strokeStyle = '#00ff99';
-      ctx.lineWidth = Math.max(2, g.tile * 0.06);
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius + ctx.lineWidth, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-}
-
+// ...rest of your file unchanged...
 export function render() {
+  // console.log('[render] tick'); // keep if you’re debugging
   const canvas = document.getElementById('board') as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const g = computeGeom(canvas);
+  const g = computeGeom(canvas); // ---------- keeps `lastGeom` fresh ----------
 
-  // Clear
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Board + pieces
   drawBoard(ctx, g);
-  drawPieces(ctx, g);
-}
-
-/* ------------------ helpers for input.ts ------------------ */
-
-/** Rectangle (in device pixels) where the board is drawn */
-export function getBoardRect(canvas: HTMLCanvasElement) {
-  const g: Geom = (window as any).__boardGeom || computeGeom(canvas);
-  return { left: g.x, top: g.y, size: g.size, tile: g.tile };
-}
-
-/** Convert mouse/touch pixel point to board row/col */
-export function boardCoordFromMouse(
-  pt: { x: number; y: number },
-  rect: { left: number; top: number; size: number; tile?: number }
-) {
-  const tile = rect.tile ?? (rect.size / state.size);
-  const c = Math.floor((pt.x - rect.left) / tile);
-  const r = Math.floor((pt.y - rect.top) / tile);
-  if (r < 0 || r >= state.size || c < 0 || c >= state.size) return null;
-  return { r, c };
-}
-
-/** Used by input to either select a piece or finish a move */
-export function trySelectOrMove(r: number, c: number) {
-  if (state.selectedIndex === undefined) {
-    selectPieceAt(r, c);
-  } else {
-    tryMoveTo(r, c);
-  }
+  // your drawPieces(ctx, g) etc.
 }

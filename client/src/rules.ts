@@ -1,14 +1,14 @@
 // client/src/rules.ts
 import type { Player } from './types';
-import { state, pieces, anim, BOTTOM_OWNER } from './uiState';
+import { state, pieces } from './uiState';
 import { colorIdxAt } from '../../shared/engine/boards';
-import { KANJI } from './palette';
-import { recordMove, pushAction, type PassAction } from './history';
+import { recordMove } from './history';
 
+// Let render.ts register a repaint callback without circular deps
 let _render = () => {};
 export function registerRenderer(fn: () => void) { _render = fn; }
 
-/* Helpers */
+/* -------------------------- Helpers -------------------------- */
 
 export const onBoard = (r: number, c: number) =>
   r >= 0 && r < state.size && c >= 0 && c < state.size;
@@ -19,26 +19,11 @@ export function pieceIndexAt(r: number, c: number) {
 export const occupied = (r: number, c: number) => pieceIndexAt(r, c) !== -1;
 
 export function dirsFor(player: Player) {
-  // Bottom owner moves "up" (toward smaller r), top owner moves "down"
-  const dr = player === BOTTOM_OWNER ? -1 : +1;
+  const dr = (player === 'White') ? -1 : +1; // White (bottom) goes up; Black goes down
   return [{ dr, dc: 0 }, { dr, dc: -1 }, { dr, dc: 1 }];
 }
 
-export function homeRow(owner: Player) {
-  // Owner's starting row
-  return owner === BOTTOM_OWNER ? (state.size - 1) : 0;
-}
-
-export function switchTurn() {
-  state.toMove = state.toMove === 'White' ? 'Black' : 'White';
-}
-
-export function currentPlayersPieceIndexByColor(ci: number) {
-  const i = pieces.findIndex(p => p.owner === state.toMove && p.colorIndex === ci);
-  return i === -1 ? undefined : i;
-}
-
-/* Move generation */
+/* --------------------- Move generation ---------------------- */
 
 const MAX_RAY = (state.size === 10) ? 7 : Number.POSITIVE_INFINITY;
 
@@ -60,7 +45,7 @@ export function legalMovesForPiece(pi: number) {
   return out;
 }
 
-/* Selection */
+/* ------------------------ Selection ------------------------- */
 
 export function selectPieceAt(r: number, c: number) {
   const idx = pieceIndexAt(r, c);
@@ -72,102 +57,53 @@ export function selectPieceAt(r: number, c: number) {
 
   state.selectedIndex = idx;
   state.legalTargets = legalMovesForPiece(idx);
+  _render();
 }
 
-/* Move execution */
+/* -------------------------- Moving -------------------------- */
 
-export function tryMoveTo(r: number, c: number) {
-  if (state.selectedIndex === undefined) return;
-  if (!state.legalTargets.some(t => t.r === r && t.c === c)) return;
-
+/**
+ * Attempt to move selected piece to (r, c).
+ * Returns true if the move is applied, false otherwise.
+ */
+export function tryMoveTo(r: number, c: number): boolean {
   const idx = state.selectedIndex;
+  if (idx === undefined) return false;
+
+  if (!state.legalTargets.some(t => t.r === r && t.c === c)) return false;
+
   const p = pieces[idx];
-
-  // Record BEFORE mutating
   const from = { r: p.pos.r, c: p.pos.c };
-  recordMove(idx, from, { r, c });
+  const to   = { r, c };
 
-  // Apply move
-  p.pos = { r, c };
+  // record first for undo/redo
+  recordMove(idx, from, to);
 
-  // Win: reach opponent's home row
+  // apply
+  p.pos = to;
+
+  // win?
   const opp: Player = p.owner === 'White' ? 'Black' : 'White';
-  if (r === homeRow(opp)) {
+  const winRow = (opp === 'White') ? 0 : (state.size - 1);
+  if (r === winRow) {
     state.winner = p.owner;
     state.message = `${p.owner} wins!`;
+    state.requiredColorIndex = undefined;
     state.selectedIndex = undefined;
     state.legalTargets = [];
     _render();
-    return;
+    return true;
   }
 
-  // Next required color is the landing square
+  // next required color is landing square
   state.requiredColorIndex = colorIdxAt(state.size as 8 | 10, r, c);
 
-  // Clear selection and switch turn
+  // switch turn & clear selection
+  state.toMove = opp;
   state.selectedIndex = undefined;
   state.legalTargets = [];
-  switchTurn();
+  state.message = '';
 
-  // Forced pass for new player?
-  if (!checkForcedPass()) {
-    state.message = '';
-    _render();
-  }
-}
-
-/* Forced pass */
-
-export function checkForcedPass(): boolean {
-  if (state.requiredColorIndex === undefined || state.winner || anim.active) return false;
-
-  const forcedIdx = currentPlayersPieceIndexByColor(state.requiredColorIndex);
-  if (forcedIdx === undefined) return false;
-
-  const moves = legalMovesForPiece(forcedIdx);
-  if (moves.length > 0) return false;
-
-  passWithAnimation(forcedIdx);
+  _render();
   return true;
-}
-
-export function passWithAnimation(forcedIdx: number) {
-  const blocked = pieces[forcedIdx];
-  const blockedSquareColor = colorIdxAt(state.size as 8 | 10, blocked.pos.r, blocked.pos.c);
-
-  anim.active = true;
-  anim.pieceIndex = forcedIdx;
-  anim.start = performance.now();
-  anim.kind = 'passStep';
-
-  state.message = `${KANJI[blocked.colorIndex]} piece is blocked — ${state.toMove} passes`;
-
-  const step = () => {
-    if (!anim.active) return;
-    const t = (performance.now() - anim.start) / anim.duration;
-
-    if (t >= 1) {
-      anim.active = false;
-
-      const action: PassAction = {
-        kind: 'pass',
-        playerWhoPassed: state.toMove,
-        blockedPieceIndex: forcedIdx,
-        blockedColorIndex: blocked.colorIndex,
-        blockedSquareColor,
-        prevToMove: state.toMove,
-        prevRequired: state.requiredColorIndex,
-        prevMessage: state.message,
-      };
-      pushAction(action);
-
-      switchTurn();
-      state.requiredColorIndex = blockedSquareColor;
-      state.message = `Required color changes to ${KANJI[blockedSquareColor]} (blocked square)`;
-      _render();
-      return;
-    }
-    requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
 }

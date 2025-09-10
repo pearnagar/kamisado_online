@@ -91,7 +91,7 @@ export function leaveRoom() {
   mySide = null;
 
   // Back to local default
-  initLocalGame(8);
+  initLocalGame();
 }
 
 /* -------------------- Moves -------------------- */
