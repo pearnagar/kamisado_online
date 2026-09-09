@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Peer Nagar — SRE, Cloud Infrastructure and DevOps engineer portfolio." />
+  <meta name="theme-color" content="#08111f" />
+  <title>Peer Nagar | SRE · Cloud · DevOps</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="Peer Nagar home">
+      <span class="brand-mark">PN</span>
+      <span>Peer Nagar</span>
+    </a>
+    <nav class="nav" aria-label="Primary navigation">
+      <a href="#projects">Projects</a>
+      <a href="#experience">Experience</a>
+      <a href="#skills">Skills</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero section reveal">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="status-dot"></span> Open to Cloud Infrastructure · DevOps · SRE roles</div>
+        <h1>I build reliable systems,<br /><span>automate the repetitive</span><br />and make production observable.</h1>
+        <p class="hero-lead">
+          SRE &amp; Cloud-focused engineer with hands-on experience in CI/CD, automation, observability,
+          Linux infrastructure, security and data-driven engineering. B.Sc. in Applied Mathematics.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/pearnagar" target="_blank" rel="noreferrer">View GitHub</a>
+          <a class="button button-secondary" href="mailto:pearnagar@gmail.com">Get in touch</a>
+        </div>
+        <div class="metrics" aria-label="Portfolio highlights">
+          <div><strong>3 yrs</strong><span>SRE &amp; Professional Services</span></div>
+          <div><strong>5</strong><span>Featured engineering projects</span></div>
+          <div><strong>2</strong><span>Microsoft Azure certifications</span></div>
+        </div>
+      </div>
+
+      <aside class="terminal-card" aria-label="Technical profile summary">
+        <div class="terminal-bar"><span></span><span></span><span></span><small>peer@portfolio:~</small></div>
+        <pre><code><span class="prompt">$</span> whoami
+Peer Nagar
+
+<span class="prompt">$</span> cat focus.txt
+Cloud Infrastructure
+DevOps / SRE
+Automation
+Observability
+Security-minded engineering
+
+<span class="prompt">$</span> ls toolkit/
+Linux      Python      Bash
+Docker     Kubernetes  Helm
+AWS        Azure       Jenkins
+GitHub     Prometheus  Grafana
+Postgres   SQL         PowerShell
+
+<span class="prompt">$</span> echo $MINDSET
+"Measure. Automate. Improve."</code></pre>
+      </aside>
+    </section>
+
+    <section id="projects" class="section reveal">
+      <div class="section-heading">
+        <p class="kicker">Selected work</p>
+        <h2>Projects that show how I think.</h2>
+        <p>Production-style builds across platform engineering, observability, full-stack systems and machine learning.</p>
+      </div>
+
+      <div class="project-grid">
+        <article class="project-card featured">
+          <div class="project-topline"><span class="project-number">01</span><span class="tag accent">Platform / Observability</span></div>
+          <h3>CS2 Analytics Engine</h3>
+          <p>
+            End-to-end analytics platform with a scheduled market scraper, FastAPI service, PostgreSQL,
+            static dashboard and a full monitoring stack. Packaged as a Helm release and designed for Kubernetes.
+          </p>
+          <ul class="impact-list">
+            <li>Prometheus + Grafana metrics and dashboards</li>
+            <li>GitHub Actions CI with linting, image builds and Trivy scans</li>
+            <li>Kubernetes CronJob, StatefulSet, Ingress, health/readiness probes</li>
+          </ul>
+          <div class="stack"><span>Kubernetes</span><span>Helm</span><span>FastAPI</span><span>Postgres</span><span>Prometheus</span><span>Grafana</span></div>
+          <a class="project-link" href="https://github.com/pearnagar/CS2_Analytics" target="_blank" rel="noreferrer">Explore repository <span>↗</span></a>
+        </article>
+
+        <article class="project-card">
+          <div class="project-topline"><span class="project-number">02</span><span class="tag">Production SaaS</span></div>
+          <h3>Acme SaaS Platform</h3>
+          <p>
+            Production-style SaaS monorepo with authentication, subscription billing, structured logging,
+            database migrations and a local observability pipeline.
+          </p>
+          <ul class="impact-list">
+            <li>Stripe webhook signature verification + idempotency</li>
+            <li>Grafana, Loki and Promtail observability</li>
+            <li>Standalone Python LangGraph SRE agent</li>
+          </ul>
+          <div class="stack"><span>Next.js</span><span>TypeScript</span><span>Postgres</span><span>Stripe</span><span>Loki</span><span>Docker</span></div>
+          <a class="project-link" href="https://github.com/pearnagar/SaaS_App" target="_blank" rel="noreferrer">Explore repository <span>↗</span></a>
+        </article>
+
+        <article class="project-card">
+          <div class="project-topline"><span class="project-number">03</span><span class="tag">Machine Learning</span></div>
+          <h3>EPL Moneyball AI</h3>
+          <p>
+            End-to-end football prediction pipeline trained on five seasons of Premier League data,
+            combining rolling form, interaction features, time decay and live bookmaker odds.
+          </p>
+          <ul class="impact-list">
+            <li>17K+ historical matches processed</li>
+            <li>XGBoost classifier with ~54.08% unseen-test accuracy</li>
+            <li>Automated value-detection logic against implied market probability</li>
+          </ul>
+          <div class="stack"><span>Python</span><span>Pandas</span><span>XGBoost</span><span>Scikit-learn</span><span>APIs</span></div>
+          <a class="project-link" href="https://github.com/pearnagar/EPL-Match-Predictor" target="_blank" rel="noreferrer">Explore repository <span>↗</span></a>
+        </article>
+
+        <article class="project-card">
+          <div class="project-topline"><span class="project-number">04</span><span class="tag">Real-time Systems</span></div>
+          <h3>Kamisado Online</h3>
+          <p>
+            Real-time multiplayer implementation of the abstract strategy board game, structured as a
+            TypeScript monorepo with shared game logic and client/server packages.
+          </p>
+          <ul class="impact-list">
+            <li>Socket.IO real-time client/server communication</li>
+            <li>Express backend with shared TypeScript domain logic</li>
+            <li>Vite-powered web client</li>
+          </ul>
+          <div class="stack"><span>TypeScript</span><span>Socket.IO</span><span>Express</span><span>Vite</span></div>
+          <a class="project-link" href="https://github.com/pearnagar/kamisado_online" target="_blank" rel="noreferrer">Explore repository <span>↗</span></a>
+        </article>
+
+        <article class="project-card compact-project">
+          <div class="project-topline"><span class="project-number">05</span><span class="tag private">Private project</span></div>
+          <h3>Management Chain — SQL + Python</h3>
+          <p>
+            Two independent solutions for traversing employee-manager hierarchies: a Recursive CTE in SQL
+            and a Python/Pandas implementation, with automated parity tests between both outputs.
+          </p>
+          <div class="stack"><span>Python</span><span>SQL</span><span>Recursive CTE</span><span>Pandas</span><span>Unit Tests</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="experience" class="section reveal">
+      <div class="section-heading split-heading">
+        <div><p class="kicker">Experience</p><h2>Built around ownership.</h2></div>
+        <p>I’m strongest where infrastructure, automation and production responsibility meet.</p>
+      </div>
+
+      <div class="timeline">
+        <article class="timeline-item">
+          <div class="timeline-date">2022 — 2025</div>
+          <div>
+            <h3>SRE &amp; Professional Services Engineer <span>· Cyberbit</span></h3>
+            <p>
+              Owned product delivery and hotfix deployments through automated CI/CD workflows; built automation
+              with Ansible, Python, Bash and PowerShell; created Prometheus alerts, Grafana dashboards and custom
+              exporters; optimized SQL for monitoring and reporting; administered VMware vSphere environments.
+            </p>
+          </div>
+        </article>
+        <article class="timeline-item">
+          <div class="timeline-date">2020 — 2022</div>
+          <div>
+            <h3>Information Security Manager <span>· IDF</span></h3>
+            <p>
+              Supervised security for classified networks, worked with digital certificates and web technologies,
+              and contributed to a security-services web project recognized with a certificate of appreciation.
+            </p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="skills" class="section reveal">
+      <div class="section-heading">
+        <p class="kicker">Technical toolkit</p>
+        <h2>Systems first. Tools second.</h2>
+      </div>
+      <div class="skills-grid">
+        <div class="skill-group"><h3>Platform &amp; Cloud</h3><p>Linux · AWS · Azure · Docker · Kubernetes · Helm · VMware vSphere</p></div>
+        <div class="skill-group"><h3>Automation &amp; Delivery</h3><p>Python · Bash · PowerShell · Ansible · Jenkins · GitHub Actions · CI/CD</p></div>
+        <div class="skill-group"><h3>Observability</h3><p>Prometheus · Grafana · Loki · structured logging · alerting · custom exporters</p></div>
+        <div class="skill-group"><h3>Data &amp; Backend</h3><p>SQL · PostgreSQL · FastAPI · Node.js · REST APIs · Pandas</p></div>
+        <div class="skill-group"><h3>Security</h3><p>Network security · certificates · secrets handling · image scanning · secure deployment practices</p></div>
+        <div class="skill-group"><h3>Education &amp; Certs</h3><p>B.Sc. Applied Mathematics, Bar-Ilan University · AZ-104 · AZ-900</p></div>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact-section reveal">
+      <div>
+        <p class="kicker">Let’s build something reliable</p>
+        <h2>Looking for an engineer who can connect infrastructure, automation and observability?</h2>
+      </div>
+      <div class="contact-actions">
+        <a class="button button-primary" href="mailto:pearnagar@gmail.com">pearnagar@gmail.com</a>
+        <a class="button button-secondary" href="https://github.com/pearnagar" target="_blank" rel="noreferrer">github.com/pearnagar</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Peer Nagar</span>
+    <span>Built as code, not a template · <span id="year"></span></span>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
